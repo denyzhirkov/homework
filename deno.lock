@@ -1,0 +1,52 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@hono/hono@4": "4.11.1",
+    "jsr:@std/assert@~0.218.2": "0.218.2",
+    "jsr:@std/fs@0.218": "0.218.2",
+    "jsr:@std/path@0.218": "0.218.2",
+    "jsr:@std/path@~0.218.2": "0.218.2",
+    "npm:cron-parser@^4.9.0": "4.9.0"
+  },
+  "jsr": {
+    "@hono/hono@4.11.1": {
+      "integrity": "28bb28c7322a1379e7132af05ef76aef09f86bb8cdd7077c67e004dea288ac0d"
+    },
+    "@std/assert@0.218.2": {
+      "integrity": "7f0a5a1a8cf86607cd6c2c030584096e1ffad27fc9271429a8cb48cfbdee5eaf"
+    },
+    "@std/fs@0.218.2": {
+      "integrity": "dd9431453f7282e8c577cc22c9e6d036055a9a980b5549f887d6012969fabcca",
+      "dependencies": [
+        "jsr:@std/assert",
+        "jsr:@std/path@~0.218.2"
+      ]
+    },
+    "@std/path@0.218.2": {
+      "integrity": "b568fd923d9e53ad76d17c513e7310bda8e755a3e825e6289a0ce536404e2662",
+      "dependencies": [
+        "jsr:@std/assert"
+      ]
+    }
+  },
+  "npm": {
+    "cron-parser@4.9.0": {
+      "integrity": "sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==",
+      "dependencies": [
+        "luxon"
+      ]
+    },
+    "luxon@3.7.2": {
+      "integrity": "sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@hono/hono@4",
+      "jsr:@std/assert@0.218",
+      "jsr:@std/fs@0.218",
+      "jsr:@std/path@0.218",
+      "npm:cron-parser@^4.9.0"
+    ]
+  }
+}
