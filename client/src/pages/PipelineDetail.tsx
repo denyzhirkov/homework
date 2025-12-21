@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowBack, Save, PlayArrow, CheckCircle, Error as ErrorIcon, Delete, Edit, Stop
@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import Editor from "@monaco-editor/react";
 import { getPipeline, savePipeline, runPipeline, stopPipeline, type Pipeline, getRunHistory, getRunLog, deletePipeline, createPipeline } from "../lib/api";
+import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 
 type RunEntry = {
   pipelineId: string;
@@ -45,33 +46,37 @@ export default function PipelineDetail() {
     loadHistory();
   }, [id]);
 
-  // SSE Subscription
-  useEffect(() => {
-    if (isNew || !id) return;
+  // WebSocket subscription for live updates
+  const handleWSEvent = useCallback((event: WSEvent) => {
+    // Only process events for this pipeline
+    if (!("pipelineId" in event) || event.pipelineId !== id) return;
 
-    const es = new EventSource(`/api/pipelines/${encodeURIComponent(id)}/live`);
-
-    es.onmessage = (e) => {
-      try {
-        const event = JSON.parse(e.data);
-        if (event.type === 'log') {
-          setLiveLogs(prev => prev + `[${event.payload.ts}] ${event.payload.msg}\n`);
-        } else if (event.type === 'start') {
-          setLiveLogs(`Pipeline started: ${event.payload.runId}\n`);
-          setSelectedRun('live');
-          setIsRunning(true);
-        } else if (event.type === 'end') {
-          setLiveLogs(prev => prev + `Pipeline finished. Success: ${event.payload.success}\n`);
-          setIsRunning(false);
-          loadHistory();
+    switch (event.type) {
+      case "log":
+        setLiveLogs(prev => prev + `[${event.payload.ts}] ${event.payload.msg}\n`);
+        break;
+      case "start":
+        setLiveLogs(`Pipeline started: ${event.payload.runId}\n`);
+        setSelectedRun("live");
+        setIsRunning(true);
+        break;
+      case "end":
+        setLiveLogs(prev => prev + `Pipeline finished. Success: ${event.payload.success}\n`);
+        setIsRunning(false);
+        loadHistory();
+        break;
+      case "step-start":
+        // Could add step tracking visualization here
+        break;
+      case "step-end":
+        if (!event.payload.success && event.payload.error) {
+          setLiveLogs(prev => prev + `[ERROR] Step '${event.payload.step}' failed: ${event.payload.error}\n`);
         }
-      } catch (err) {
-        console.error("SSE Parse Error", err);
-      }
-    };
+        break;
+    }
+  }, [id]);
 
-    return () => es.close();
-  }, [id, isNew]);
+  useWebSocket(handleWSEvent);
 
   // Auto-scroll for live logs
   useEffect(() => {

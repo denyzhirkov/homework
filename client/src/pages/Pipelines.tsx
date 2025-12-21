@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { PlayArrow, Schedule } from "@mui/icons-material";
 import {
@@ -6,81 +6,56 @@ import {
   Grid, Chip, Stack, Container, CircularProgress
 } from "@mui/material";
 import { getPipelines, type Pipeline, runPipeline } from "../lib/api";
-
-// Component to show live log for a running pipeline
-function LiveLogChip({ pipelineId }: { pipelineId: string }) {
-  const [lastLog, setLastLog] = useState("");
-  const esRef = useRef<EventSource | null>(null);
-
-  useEffect(() => {
-    const es = new EventSource(`/api/pipelines/${encodeURIComponent(pipelineId)}/live`);
-    esRef.current = es;
-
-    es.onmessage = (e) => {
-      try {
-        const event = JSON.parse(e.data);
-        if (event.type === 'log' && event.payload?.msg) {
-          // Keep only last line, truncate if too long
-          const msg = event.payload.msg.slice(0, 80);
-          setLastLog(msg);
-        }
-      } catch { }
-    };
-
-    return () => {
-      es.close();
-    };
-  }, [pipelineId]);
-
-  if (!lastLog) return null;
-
-  return (
-    <Typography
-      variant="caption"
-      sx={{
-        display: 'block',
-        mt: 1,
-        px: 1,
-        py: 0.5,
-        bgcolor: '#1e1e1e',
-        color: '#0f0',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        borderRadius: 1,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      }}
-    >
-      {lastLog}
-    </Typography>
-  );
-}
+import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
+import { LiveLogChip } from "../components/LiveLogChip";
 
 export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Initial load
   useEffect(() => {
-    getPipelines().then(setPipelines)
+    getPipelines()
+      .then(setPipelines)
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  // Polling to refresh running state
-  useEffect(() => {
-    const interval = setInterval(() => {
+  // Handle WebSocket events for real-time updates
+  const handleEvent = useCallback((event: WSEvent) => {
+    if (event.type === "init") {
+      // Update from initial state
+      setPipelines(prev => {
+        return prev.map(p => {
+          const status = event.pipelines.find(s => s.id === p.id);
+          return status ? { ...p, isRunning: status.isRunning } : p;
+        });
+      });
+      setLoading(false);
+    } else if (event.type === "start" && "pipelineId" in event) {
+      // Mark pipeline as running
+      setPipelines(prev =>
+        prev.map(p => p.id === event.pipelineId ? { ...p, isRunning: true } : p)
+      );
+    } else if (event.type === "end" && "pipelineId" in event) {
+      // Mark pipeline as not running
+      setPipelines(prev =>
+        prev.map(p => p.id === event.pipelineId ? { ...p, isRunning: false } : p)
+      );
+    } else if (event.type === "pipelines:changed") {
+      // Refetch pipelines list when pipelines are added/removed
       getPipelines().then(setPipelines).catch(console.error);
-    }, 5000);
-    return () => clearInterval(interval);
+    }
   }, []);
+
+  useWebSocket(handleEvent);
 
   const handleRun = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
     try {
       await runPipeline(id);
-      getPipelines().then(setPipelines).catch(console.error);
+      // No need to refetch - WebSocket will update the state
     } catch (err) {
       console.error("Error triggering pipeline:", err);
     }

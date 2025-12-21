@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 import { listPipelines, loadPipeline, runPipeline, savePipeline, deletePipeline, getActivePipelines, stopPipeline, isDemoPipeline } from "./engine.ts";
 import { listModules, loadModule, getModuleSource, saveModule, deleteModule, isBuiltInModule } from "./modules.ts";
 import { loadVariables, saveVariables } from "./variables.ts";
-import { getRunHistory, getRunLog } from "./logger.ts";
+import { getRunHistory, getRunLogWithStatus } from "./logger.ts";
 import { Scheduler } from "./scheduler.ts";
 
 const app = new Hono();
@@ -40,17 +40,22 @@ app.get("/api/pipelines", async (c) => {
   return c.json(enhanced);
 });
 
-app.get("/api/pipelines/:id/runs", async (c) => {
+app.get("/api/pipelines/:id/runs", (c) => {
   const id = c.req.param("id");
-  const history = await getRunHistory(id);
+  const history = getRunHistory(id);
   return c.json(history);
 });
 
-app.get("/api/pipelines/:id/runs/:runId", async (c) => {
+app.get("/api/pipelines/:id/runs/:runId", (c) => {
   const id = c.req.param("id");
   const runId = c.req.param("runId");
-  const log = await getRunLog(id, runId);
-  if (log === null) return c.text("Log not found", 404);
+  const { log, status } = getRunLogWithStatus(id, runId);
+  if (log === null) {
+    if (status === "running") {
+      return c.text("Pipeline is currently running. View Live Output for real-time logs.");
+    }
+    return c.text("Log not found", 404);
+  }
   return c.text(log);
 });
 
@@ -62,8 +67,8 @@ app.get("/api/pipelines/:id/live", (c) => {
   return streamSSE(c, async (stream) => {
     // Subscribe to pubsub
     const unsubscribe = pubsub.subscribe(async (event) => {
-      // Filter for this pipeline
-      if (event.pipelineId === id) {
+      // Filter for this pipeline (only PipelineEvents have pipelineId)
+      if ("pipelineId" in event && event.pipelineId === id) {
         await stream.writeSSE({
           data: JSON.stringify(event),
           event: "message",
@@ -101,6 +106,7 @@ app.post("/api/pipelines", async (c) => {
     const body = await c.req.json();
     const id = uuidv4();
     await savePipeline(id, body);
+    pubsub.publish({ type: "pipelines:changed" });
     return c.json({ success: true, id });
   } catch (e) {
     return c.json({ error: String(e) }, 500);
@@ -117,6 +123,7 @@ app.post("/api/pipelines/:id", async (c) => {
 app.delete("/api/pipelines/:id", async (c) => {
   try {
     await deletePipeline(c.req.param("id"));
+    pubsub.publish({ type: "pipelines:changed" });
     return c.json({ success: true });
   } catch (e) {
     return c.json({ error: String(e) }, 500);
@@ -155,6 +162,7 @@ app.post("/api/variables", async (c) => {
   try {
     const vars = await c.req.json();
     await saveVariables(vars);
+    pubsub.publish({ type: "variables:changed" });
     return c.json({ success: true });
   } catch (e) {
     return c.json({ error: String(e) }, 500);
@@ -186,12 +194,14 @@ app.post("/api/modules/:id", async (c) => {
     return c.json({ error: "Missing source" }, 400);
   }
   await saveModule(id, body.source);
+  pubsub.publish({ type: "modules:changed" });
   return c.json({ success: true });
 });
 
 app.delete("/api/modules/:id", async (c) => {
   try {
     await deleteModule(c.req.param("id"));
+    pubsub.publish({ type: "modules:changed" });
     return c.json({ success: true });
   } catch (e) {
     return c.json({ error: String(e) }, 500);
@@ -199,6 +209,115 @@ app.delete("/api/modules/:id", async (c) => {
 });
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
+
+// Server start time for uptime calculation
+const serverStartTime = Date.now();
+
+app.get("/api/stats", async (c) => {
+  const pipelines = await listPipelines();
+  const modules = await listModules();
+  
+  return c.json({
+    platform: Deno.build.os,
+    denoVersion: Deno.version.deno,
+    pipelinesCount: pipelines.length,
+    modulesCount: modules.length,
+    uptime: (Date.now() - serverStartTime) / 1000
+  });
+});
+
+// --- Statistics API (from SQLite) ---
+
+import { getPipelineStats, getOverviewStats, getStepsByRunId, getRunByRunId } from "./db.ts";
+
+app.get("/api/stats/overview", (c) => {
+  const stats = getOverviewStats();
+  return c.json(stats);
+});
+
+app.get("/api/stats/pipeline/:id", (c) => {
+  const id = c.req.param("id");
+  const stats = getPipelineStats(id);
+  return c.json(stats);
+});
+
+app.get("/api/pipelines/:id/runs/:runId/steps", (c) => {
+  const pipelineId = c.req.param("id");
+  const runId = c.req.param("runId");
+  const run = getRunByRunId(pipelineId, runId);
+  if (!run) return c.json({ error: "Run not found" }, 404);
+  const steps = getStepsByRunId(run.id);
+  return c.json(steps);
+});
+
+// --- WebSocket for real-time events ---
+
+// Track all connected WebSocket clients
+const wsClients = new Set<WebSocket>();
+
+app.get("/api/ws", async (c) => {
+  // Check if this is a WebSocket upgrade request
+  const upgradeHeader = c.req.header("Upgrade");
+  if (upgradeHeader !== "websocket") {
+    return c.text("Expected WebSocket upgrade", 400);
+  }
+
+  // Get the raw request for Deno.upgradeWebSocket
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
+
+  socket.onopen = async () => {
+    console.log("[WS] Client connected");
+    wsClients.add(socket);
+
+    // Send initial state: list of pipelines with running status
+    try {
+      const pipelines = await listPipelines();
+      const active = new Set(getActivePipelines());
+      const pipelineStatuses = pipelines.map(p => ({
+        id: p.id,
+        name: p.name,
+        isRunning: active.has(p.id),
+        isDemo: isDemoPipeline(p.id),
+        schedule: p.schedule,
+        stepsCount: p.steps?.length || 0
+      }));
+
+      socket.send(JSON.stringify({
+        type: "init",
+        pipelines: pipelineStatuses
+      }));
+    } catch (e) {
+      console.error("[WS] Error sending initial state:", e);
+    }
+  };
+
+  socket.onclose = () => {
+    console.log("[WS] Client disconnected");
+    wsClients.delete(socket);
+  };
+
+  socket.onerror = (e) => {
+    console.error("[WS] Error:", e);
+    wsClients.delete(socket);
+  };
+
+  return response;
+});
+
+// Subscribe to pubsub and broadcast to all WebSocket clients
+pubsub.subscribe((event) => {
+  const message = JSON.stringify(event);
+  for (const client of wsClients) {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(message);
+      } catch (e) {
+        console.error("[WS] Failed to send message:", e);
+        wsClients.delete(client);
+      }
+    }
+  }
+});
 
 // --- Static Frontend ---
 

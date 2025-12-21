@@ -1,63 +1,74 @@
-import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
-
-const LOGS_DIR = "./logs";
+import {
+  createRun,
+  finishRun,
+  getRunsByPipeline,
+  getRunByRunId,
+  createStep,
+  finishStep,
+  type RunRecord,
+} from "./db.ts";
 
 export interface LogEntry {
   pipelineId: string;
-  runId: string; // Timestamp
+  runId: string;
   status: "success" | "fail" | "running";
   duration?: number;
+  startedAt?: number;
 }
 
-export async function saveLog(pipelineId: string, runId: string, status: string, content: string) {
-  const dir = join(LOGS_DIR, pipelineId);
-  await ensureDir(dir);
-
-  // Filename format: <timestamp>_<status>.log
-  const filename = `${runId}_${status}.log`;
-  await Deno.writeTextFile(join(dir, filename), content);
+// Create a new run record in DB, returns the DB row id
+export function startRun(pipelineId: string, runId: string): number {
+  return createRun(pipelineId, runId);
 }
 
-export async function getRunHistory(pipelineId: string): Promise<LogEntry[]> {
-  const dir = join(LOGS_DIR, pipelineId);
-  const history: LogEntry[] = [];
-
-  try {
-    for await (const entry of Deno.readDir(dir)) {
-      if (entry.isFile && entry.name.endsWith(".log")) {
-        // Parse 1234567890_success.log
-        const [runId, statusPart] = entry.name.split("_");
-        const status = statusPart.replace(".log", "") as any;
-
-        history.push({
-          pipelineId,
-          runId,
-          status,
-        });
-      }
-    }
-  } catch (e) {
-    if (!(e instanceof Deno.errors.NotFound)) {
-      console.error("Error reading run logs:", e);
-    }
-  }
-
-  // Sort descending
-  return history.sort((a, b) => Number(b.runId) - Number(a.runId));
+// Finish a run with status and log content
+export function saveLog(
+  dbRunId: number,
+  status: string,
+  content: string,
+  durationMs: number
+): void {
+  finishRun(dbRunId, status, content, durationMs);
 }
 
-export async function getRunLog(pipelineId: string, runId: string): Promise<string | null> {
-  const dir = join(LOGS_DIR, pipelineId);
-  try {
-    // We don't know the status suffix, so we look for matching prefix
-    for await (const entry of Deno.readDir(dir)) {
-      if (entry.name.startsWith(runId + "_")) {
-        return await Deno.readTextFile(join(dir, entry.name));
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return null;
+// Get run history for a pipeline
+export function getRunHistory(pipelineId: string): LogEntry[] {
+  const runs = getRunsByPipeline(pipelineId);
+  return runs.map((r: RunRecord) => ({
+    pipelineId: r.pipeline_id,
+    runId: r.run_id,
+    status: r.status as "success" | "fail" | "running",
+    duration: r.duration_ms ?? undefined,
+    startedAt: r.started_at,
+  }));
+}
+
+// Get log content for a specific run
+export function getRunLog(pipelineId: string, runId: string): string | null {
+  const run = getRunByRunId(pipelineId, runId);
+  return run?.log_content ?? null;
+}
+
+// Get log content with status (for handling running pipelines)
+export function getRunLogWithStatus(pipelineId: string, runId: string): { log: string | null; status: string | null } {
+  const run = getRunByRunId(pipelineId, runId);
+  if (!run) return { log: null, status: null };
+  return { log: run.log_content, status: run.status };
+}
+
+// --- Step tracking ---
+
+export function startStep(dbRunId: number, stepName: string, moduleName: string): number {
+  return createStep(dbRunId, stepName, moduleName);
+}
+
+export function endStep(
+  stepId: number,
+  success: boolean,
+  result?: unknown,
+  error?: string
+): void {
+  const status = success ? "success" : "fail";
+  const resultJson = result !== undefined ? JSON.stringify(result) : undefined;
+  finishStep(stepId, status, resultJson, error);
 }

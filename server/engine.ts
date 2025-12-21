@@ -2,7 +2,7 @@ import { ensureDir } from "@std/fs";
 import { join, parse } from "@std/path";
 import { loadModule } from "./modules.ts";
 import { getMergedEnv } from "./variables.ts";
-import { saveLog } from "./logger.ts";
+import { startRun, saveLog, startStep, endStep } from "./logger.ts";
 
 const PIPELINES_DIR = "./pipelines";
 await ensureDir(PIPELINES_DIR);
@@ -102,6 +102,7 @@ export async function runPipeline(id: string) {
   console.log(`[Engine] Starting pipeline: ${pipeline.name} (${id})`);
 
   const runId = String(Date.now());
+  const dbRunId = startRun(id, runId); // Create run record in DB
   let logBuffer = `Pipeline: ${pipeline.name}\nRun ID: ${runId}\nStarted: ${new Date().toISOString()}\n\n`;
 
   // Notify start
@@ -172,19 +173,33 @@ export async function runPipeline(id: string) {
     log(`Running step: ${stepName}`);
     pubsub.publish({ type: "step-start", pipelineId: id, payload: { runId, step: stepName } });
 
+    // Record step start in DB
+    const stepId = startStep(dbRunId, stepName, step.module);
+
     const mod = await loadModule(step.module);
     if (!mod) {
-      throw new Error(`Module '${step.module}' not found`);
+      const error = `Module '${step.module}' not found`;
+      endStep(stepId, false, undefined, error);
+      throw new Error(error);
     }
 
     // Resolve params with interpolation
     const resolvedParams = interpolate(step.params || {});
 
-    const result = await mod.run(ctx, resolvedParams);
-    log(`Step '${stepName}' completed. Result: ${JSON.stringify(result)}`);
-    pubsub.publish({ type: "step-end", pipelineId: id, payload: { runId, step: stepName, success: true } });
-
-    return { step, result };
+    try {
+      const result = await mod.run(ctx, resolvedParams);
+      log(`Step '${stepName}' completed. Result: ${JSON.stringify(result)}`);
+      pubsub.publish({ type: "step-end", pipelineId: id, payload: { runId, step: stepName, success: true } });
+      
+      // Record step success in DB
+      endStep(stepId, true, result);
+      
+      return { step, result };
+    } catch (e: any) {
+      const errorMsg = e?.message || String(e);
+      endStep(stepId, false, undefined, errorMsg);
+      throw e;
+    }
   };
 
   let success = true;
@@ -224,7 +239,7 @@ export async function runPipeline(id: string) {
   const duration = Date.now() - ctx.startTime;
   log(`\nPipeline finished. Duration: ${duration}ms`);
 
-  await saveLog(id, runId, success ? "success" : "fail", logBuffer);
+  saveLog(dbRunId, success ? "success" : "fail", logBuffer, duration);
 
   // Notify end
   pubsub.publish({ type: "end", pipelineId: id, payload: { runId, success } });
