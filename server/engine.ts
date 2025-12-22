@@ -128,8 +128,10 @@ export async function runPipeline(id: string) {
   };
   runningPipelines.set(id, runningInfo);
 
+  const totalSteps = pipeline.steps.length;
+  
   // Notify start
-  pubsub.publish({ type: "start", pipelineId: id, payload: { runId } });
+  pubsub.publish({ type: "start", pipelineId: id, payload: { runId, totalSteps } });
 
   const log = (msg: string) => {
     console.log(msg);
@@ -193,10 +195,10 @@ export async function runPipeline(id: string) {
   }
 
   // Execute a single step
-  const executeStep = async (step: PipelineStep) => {
+  const executeStep = async (step: PipelineStep, stepIndex: number) => {
     const stepName = step.description || step.name || step.module;
     log(`Running step: ${stepName}`);
-    pubsub.publish({ type: "step-start", pipelineId: id, payload: { runId, step: stepName } });
+    pubsub.publish({ type: "step-start", pipelineId: id, payload: { runId, step: stepName, stepIndex, totalSteps } });
 
     // Record step start in DB
     const stepId = startStep(dbRunId, stepName, step.module);
@@ -214,35 +216,41 @@ export async function runPipeline(id: string) {
     try {
       const result = await mod.run(ctx, resolvedParams);
       log(`Step '${stepName}' completed. Result: ${JSON.stringify(result)}`);
-      pubsub.publish({ type: "step-end", pipelineId: id, payload: { runId, step: stepName, success: true } });
+      pubsub.publish({ type: "step-end", pipelineId: id, payload: { runId, step: stepName, stepIndex, totalSteps, success: true } });
       
       // Record step success in DB
       endStep(stepId, true, result);
       
-      return { step, result };
+      return { step, result, stepIndex };
     } catch (e: any) {
       const errorMsg = e?.message || String(e);
+      pubsub.publish({ type: "step-end", pipelineId: id, payload: { runId, step: stepName, stepIndex, totalSteps, success: false, error: errorMsg } });
       endStep(stepId, false, undefined, errorMsg);
       throw e;
     }
   };
 
   let success = true;
+  let currentStepIndex = 0;
 
   try {
     for (const group of stepGroups) {
       if (group.length === 1) {
         // Single step - execute normally
-        const { step, result } = await executeStep(group[0]);
+        const { step, result } = await executeStep(group[0], currentStepIndex);
         ctx.prev = result;
         if (step.name) {
           ctx.results[step.name] = result;
         }
+        currentStepIndex++;
       } else {
         // Parallel group - execute all steps simultaneously
         log(`Running ${group.length} steps in parallel (group: ${group[0].parallel})`);
         
-        const results = await Promise.all(group.map(executeStep));
+        const startIndex = currentStepIndex;
+        const results = await Promise.all(
+          group.map((step, i) => executeStep(step, startIndex + i))
+        );
         
         // Save all results
         for (const { step, result } of results) {
@@ -252,13 +260,13 @@ export async function runPipeline(id: string) {
         }
         // prev = last result in the parallel group
         ctx.prev = results[results.length - 1].result;
+        currentStepIndex += group.length;
       }
     }
   } catch (e: any) {
     success = false;
     const errorMsg = e?.message || String(e);
     log(`Pipeline failed: ${errorMsg}`);
-    pubsub.publish({ type: "step-end", pipelineId: id, payload: { runId, step: "unknown", success: false, error: errorMsg } });
   }
 
   const duration = Date.now() - ctx.startTime;

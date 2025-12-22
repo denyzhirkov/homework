@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   Box, Typography, Grid, Card, CardContent, Divider, Button,
-  Container, CircularProgress, Paper, Avatar, Chip
+  Container, CircularProgress, Paper, Avatar, Chip, LinearProgress
 } from "@mui/material";
 import {
   AccountTree, Extension, Timer, Storage, ArrowForward
@@ -11,10 +11,17 @@ import { getStats, getPipelines } from "../lib/api";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import { LiveLogChip } from "../components/LiveLogChip";
 
+// Track progress for running pipelines
+interface ProgressInfo {
+  completed: number;
+  total: number;
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<Record<string, ProgressInfo>>({});
 
   // Initial load
   useEffect(() => {
@@ -38,15 +45,32 @@ export default function Dashboard() {
         });
       });
     } else if (event.type === "start" && "pipelineId" in event) {
-      // Mark pipeline as running
+      // Mark pipeline as running and init progress
       setPipelines(prev =>
         prev.map(p => p.id === event.pipelineId ? { ...p, isRunning: true } : p)
       );
+      setProgress(prev => ({
+        ...prev,
+        [event.pipelineId]: { completed: 0, total: event.payload.totalSteps }
+      }));
+    } else if (event.type === "step-end" && "pipelineId" in event) {
+      // Update progress on step completion
+      setProgress(prev => ({
+        ...prev,
+        [event.pipelineId]: {
+          completed: event.payload.stepIndex + 1,
+          total: event.payload.totalSteps
+        }
+      }));
     } else if (event.type === "end" && "pipelineId" in event) {
-      // Mark pipeline as not running
+      // Mark pipeline as not running and clear progress
       setPipelines(prev =>
         prev.map(p => p.id === event.pipelineId ? { ...p, isRunning: false } : p)
       );
+      setProgress(prev => {
+        const { [event.pipelineId]: _, ...rest } = prev;
+        return rest;
+      });
     } else if (event.type === "pipelines:changed") {
       // Refetch pipelines when list changes
       getPipelines()
@@ -106,7 +130,7 @@ export default function Dashboard() {
             {pipelines.length === 0 ? (
               <Box sx={{ p: 3, textAlign: 'center' }}>No pipelines yet.</Box>
             ) : pipelines.map((p, i) => (
-              <Box key={p.id}>
+              <Box key={p.id} sx={{ position: 'relative' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, '&:hover': { bgcolor: 'action.hover' } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     {p.isRunning ? (
@@ -120,13 +144,37 @@ export default function Dashboard() {
                         {p.isRunning && <Chip size="small" label="Running" color="success" sx={{ ml: 1 }} />}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">{p.id}.json</Typography>
-                      {p.isRunning && <LiveLogChip pipelineId={p.id} />}
+                      {/* Always reserve space to prevent layout shift */}
+                      <Box sx={{ 
+                        mt: 1,
+                        height: 24,
+                        bgcolor: p.isRunning ? '#1e1e1e' : 'transparent',
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        transition: 'background-color 0.2s',
+                      }}>
+                        {p.isRunning && <LiveLogChip pipelineId={p.id} />}
+                      </Box>
                     </Box>
                   </Box>
                   <Button component={Link} to={`/pipelines/${p.id}`} size="small" endIcon={<ArrowForward />}>
                     View
                   </Button>
                 </Box>
+                {/* Progress bar at bottom of item */}
+                {p.isRunning && (
+                  <LinearProgress
+                    variant={progress[p.id] ? "determinate" : "indeterminate"}
+                    value={progress[p.id] ? (progress[p.id].completed / progress[p.id].total) * 100 : undefined}
+                    sx={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 3,
+                    }}
+                  />
+                )}
                 {i < pipelines.length - 1 && <Divider />}
               </Box>
             ))}

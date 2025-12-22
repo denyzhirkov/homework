@@ -32,8 +32,8 @@ app.use("/assets/*", serveStatic({ root: "./client/dist" }));
 app.get("/api/pipelines", async (c) => {
   const pipelines = await listPipelines();
   const active = new Set(getActivePipelines());
-  const enhanced = pipelines.map(p => ({ 
-    ...p, 
+  const enhanced = pipelines.map(p => ({
+    ...p,
     isRunning: active.has(p.id),
     isDemo: isDemoPipeline(p.id)
   }));
@@ -217,7 +217,7 @@ const serverStartTime = Date.now();
 app.get("/api/stats", async (c) => {
   const pipelines = await listPipelines();
   const modules = await listModules();
-  
+
   return c.json({
     platform: Deno.build.os,
     denoVersion: Deno.version.deno,
@@ -329,7 +329,7 @@ app.use("/*", serveStatic({ root: "./client/dist" }));
 app.get("*", serveStatic({ path: "./client/dist/index.html" }));
 
 if (import.meta.main) {
-  console.log("Starting NanoCI server on http://localhost:8000");
+  console.log("Starting HomeworkCI server on http://localhost:8000");
   Deno.serve({ port: 8000 }, app.fetch);
 }
 

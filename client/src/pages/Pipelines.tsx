@@ -3,15 +3,22 @@ import { Link } from "react-router-dom";
 import { PlayArrow, Schedule, Stop } from "@mui/icons-material";
 import {
   Box, Typography, Button, Card, CardContent, CardActions,
-  Grid, Chip, Stack, Container, CircularProgress
+  Grid, Chip, Stack, Container, CircularProgress, LinearProgress
 } from "@mui/material";
 import { getPipelines, type Pipeline, runPipeline, stopPipeline } from "../lib/api";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import { LiveLogChip } from "../components/LiveLogChip";
 
+// Track progress for running pipelines: { pipelineId: { completed: number, total: number } }
+interface ProgressInfo {
+  completed: number;
+  total: number;
+}
+
 export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<Record<string, ProgressInfo>>({});
 
   // Initial load
   useEffect(() => {
@@ -33,15 +40,32 @@ export default function Pipelines() {
       });
       setLoading(false);
     } else if (event.type === "start" && "pipelineId" in event) {
-      // Mark pipeline as running
+      // Mark pipeline as running and init progress
       setPipelines(prev =>
         prev.map(p => p.id === event.pipelineId ? { ...p, isRunning: true } : p)
       );
+      setProgress(prev => ({
+        ...prev,
+        [event.pipelineId]: { completed: 0, total: event.payload.totalSteps }
+      }));
+    } else if (event.type === "step-end" && "pipelineId" in event) {
+      // Update progress on step completion
+      setProgress(prev => ({
+        ...prev,
+        [event.pipelineId]: {
+          completed: event.payload.stepIndex + 1,
+          total: event.payload.totalSteps
+        }
+      }));
     } else if (event.type === "end" && "pipelineId" in event) {
-      // Mark pipeline as not running
+      // Mark pipeline as not running and clear progress
       setPipelines(prev =>
         prev.map(p => p.id === event.pipelineId ? { ...p, isRunning: false } : p)
       );
+      setProgress(prev => {
+        const { [event.pipelineId]: _, ...rest } = prev;
+        return rest;
+      });
     } else if (event.type === "pipelines:changed") {
       // Refetch pipelines list when pipelines are added/removed
       getPipelines().then(setPipelines).catch(console.error);
@@ -104,7 +128,9 @@ export default function Pipelines() {
                 display: 'flex',
                 flexDirection: 'column',
                 transition: '0.3s',
-                '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 }
+                position: 'relative',
+                overflow: 'hidden',
+                '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 }
               }}
               component={Link}
               to={`/pipelines/${p.id}`}
@@ -137,8 +163,32 @@ export default function Pipelines() {
                     />
                   )}
                 </Stack>
-                {p.isRunning && <LiveLogChip pipelineId={p.id} />}
+                {/* Always reserve space to prevent layout shift */}
+                <Box sx={{ 
+                  mt: 1,
+                  height: 24,
+                  bgcolor: p.isRunning ? '#1e1e1e' : 'transparent',
+                  borderRadius: 1,
+                  overflow: 'hidden',
+                  transition: 'background-color 0.2s',
+                }}>
+                  {p.isRunning && <LiveLogChip pipelineId={p.id} />}
+                </Box>
               </CardContent>
+              {/* Progress bar at bottom of card */}
+              {p.isRunning && (
+                <LinearProgress
+                  variant={progress[p.id] ? "determinate" : "indeterminate"}
+                  value={progress[p.id] ? (progress[p.id].completed / progress[p.id].total) * 100 : undefined}
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 4,
+                  }}
+                />
+              )}
               <CardActions disableSpacing sx={{ justifyContent: 'flex-end', borderTop: '1px solid #eee' }}>
                 {!p.isRunning ? (
                   <Button

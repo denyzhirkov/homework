@@ -8,15 +8,12 @@ interface LiveLogChipProps {
   showSkeleton?: boolean;
 }
 
-// Shared styles for the log container
-const logContainerStyles = {
-  display: 'block',
-  mt: 1,
+// Inner content styles (container is managed by parent)
+const contentStyles = {
+  display: 'flex',
+  alignItems: 'center',
   px: 1,
-  py: 0.5,
-  bgcolor: '#1e1e1e',
-  borderRadius: 1,
-  height: 20,
+  height: '100%',
   minWidth: 150,
 };
 
@@ -40,7 +37,7 @@ export function LiveLogChip({ pipelineId, showSkeleton = true }: LiveLogChipProp
     if (!showSkeleton) return null;
     
     return (
-      <Box sx={logContainerStyles}>
+      <Box sx={contentStyles}>
         <Skeleton 
           variant="text" 
           width="80%" 
@@ -57,20 +54,21 @@ export function LiveLogChip({ pipelineId, showSkeleton = true }: LiveLogChipProp
   }
 
   return (
-    <Typography
-      variant="caption"
-      sx={{
-        ...logContainerStyles,
-        color: '#0f0',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        height: 'auto',
-      }}
-    >
-      {lastLog}
-    </Typography>
+    <Box sx={contentStyles}>
+      <Typography
+        variant="caption"
+        sx={{
+          color: '#0f0',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          lineHeight: 1,
+        }}
+      >
+        {lastLog}
+      </Typography>
+    </Box>
   );
 }
