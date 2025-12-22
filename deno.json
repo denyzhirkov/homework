@@ -1,11 +1,14 @@
 {
+  "name": "homeworkci",
+  "version": "1.0.0",
   "tasks": {
     "start": "deno run -A --watch server/main.ts",
     "dev:client": "cd client && npm run dev",
     "build:client": "cd client && npm run build",
     "migrate:logs": "deno run -A server/migrate-logs.ts",
     "cleanup": "deno run -A server/cleanup.ts",
-    "reset": "deno run -A server/cleanup.ts --reset"
+    "reset": "deno run -A server/cleanup.ts --reset",
+    "version": "deno run -A scripts/version.ts"
   },
   "imports": {
     "hono": "jsr:@hono/hono@^4.0.0",
