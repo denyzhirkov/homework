@@ -13,8 +13,15 @@
 export async function run(ctx: any, params: { cmd: string }) {
   if (ctx.log) ctx.log(`[Shell] Executing: ${params.cmd}`);
 
+  // Wrap command with exec so SIGKILL kills the actual command, not just the shell
+  // For simple commands, exec replaces the shell process
+  // For complex commands (pipes, etc.), we prepend exec to ensure proper signal handling
+  const wrappedCmd = params.cmd.includes("|") || params.cmd.includes("&&") || params.cmd.includes(";")
+    ? params.cmd  // Complex command - can't use exec
+    : `exec ${params.cmd}`;  // Simple command - use exec to replace shell
+  
   const command = new Deno.Command("sh", {
-    args: ["-c", params.cmd],
+    args: ["-c", wrappedCmd],
     cwd: ctx.workDir, // Use sandboxed working directory for isolation
     env: ctx.env,
     stdout: "piped",
@@ -22,12 +29,18 @@ export async function run(ctx: any, params: { cmd: string }) {
   });
 
   const process = command.spawn();
+  let killed = false;
 
   // Handle abort signal - kill process when pipeline is stopped
   const abortHandler = () => {
-    if (ctx.log) ctx.log(`[Shell] Process killed by user`);
+    if (killed) return;
+    killed = true;
+    
+    if (ctx.log) ctx.log(`[Shell] Stopping process...`);
     try {
-      process.kill("SIGTERM");
+      // Use SIGKILL to ensure immediate termination (SIGTERM may be ignored)
+      process.kill("SIGKILL");
+      if (ctx.log) ctx.log(`[Shell] Process killed by user`);
     } catch {
       // Process may have already exited
     }
@@ -44,6 +57,8 @@ export async function run(ctx: any, params: { cmd: string }) {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        // Stop logging if killed
+        if (killed) break;
         if (ctx.log) {
           const lines = value.split('\n');
           for (const line of lines) {
@@ -52,8 +67,8 @@ export async function run(ctx: any, params: { cmd: string }) {
         }
       }
     } catch (e: any) {
-      // Ignore read errors if aborted
-      if (ctx.signal?.aborted) return;
+      // Ignore read errors if aborted/killed
+      if (ctx.signal?.aborted || killed) return;
       throw e;
     } finally {
       reader.releaseLock();
@@ -61,12 +76,17 @@ export async function run(ctx: any, params: { cmd: string }) {
   };
 
   try {
-    await Promise.all([
+    // Start streaming but don't wait for completion
+    const streamPromise = Promise.all([
       streamOutput(process.stdout),
       streamOutput(process.stderr, "[ERR] "),
     ]);
 
+    // Wait for process to complete
     const status = await process.status;
+
+    // Wait for streams to finish
+    await streamPromise.catch(() => {});
 
     // Remove abort listener if process finished normally
     if (ctx.signal) {
@@ -74,7 +94,7 @@ export async function run(ctx: any, params: { cmd: string }) {
     }
 
     // Check if we were aborted
-    if (ctx.signal?.aborted) {
+    if (ctx.signal?.aborted || killed) {
       throw new Error("Pipeline stopped by user");
     }
 
@@ -89,7 +109,7 @@ export async function run(ctx: any, params: { cmd: string }) {
       ctx.signal.removeEventListener("abort", abortHandler);
     }
     
-    if (ctx.signal?.aborted) {
+    if (ctx.signal?.aborted || killed) {
       throw new Error("Pipeline stopped by user");
     }
     throw e;

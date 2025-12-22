@@ -39,7 +39,7 @@ Start the backend server (API + static frontend serving):
 deno task start
 ```
 
-The server will be available at [http://localhost:8000](http://localhost:8000).
+The server will be available at [http://localhost:8008](http://localhost:8008).
 
 ### Developing the Frontend
 
@@ -90,7 +90,7 @@ docker compose up -d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `8000` | Internal server port |
+| `PORT` | `8008` | Internal server port |
 | `CLIENT_PORT` | `80` | External web interface port |
 | `SANDBOX_MAX_AGE_HOURS` | `24` | Sandbox directory lifetime |
 | `ENABLE_SCHEDULER` | `true` | Enable cron scheduler |

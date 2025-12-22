@@ -27,7 +27,7 @@ export const config = {
   configDir: getEnv("CONFIG_DIR", "./config"),
 
   // --- Server ---
-  port: getEnvInt("PORT", 8000),
+  port: getEnvInt("PORT", 8008),
   host: getEnv("HOST", "0.0.0.0"),
 
   // --- Cleanup ---

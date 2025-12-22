@@ -70,8 +70,10 @@ export async function listModules(): Promise<ModuleInfo[]> {
 
 export async function loadModule(name: string): Promise<StepModule | null> {
   try {
-    // Determine absolute path
-    const fullPath = join(Deno.cwd(), MODULES_DIR, `${name}.ts`);
+    // Determine absolute path (handle both relative and absolute MODULES_DIR)
+    const fullPath = MODULES_DIR.startsWith("/") 
+      ? join(MODULES_DIR, `${name}.ts`)
+      : join(Deno.cwd(), MODULES_DIR, `${name}.ts`);
     const importUrl = `file://${fullPath}?v=${Date.now()}`; // Cache busting
     const mod = await import(importUrl);
 
