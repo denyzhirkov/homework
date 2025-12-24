@@ -1,4 +1,5 @@
 // HTTP Requests.
+// Tags: built-in
 //
 // Usage Example:
 // {

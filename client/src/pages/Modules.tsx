@@ -1,15 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Code, Extension, ExpandMore } from "@mui/icons-material";
+import { Code, Extension, ExpandMore, FolderOpen } from "@mui/icons-material";
 import {
   Box, Typography, Button, Card, CardContent, CardActions,
-  Grid, Container, CircularProgress, Alert, Accordion, AccordionSummary, AccordionDetails
+  Grid, Container, CircularProgress, Alert, Accordion, AccordionSummary, AccordionDetails, Chip
 } from "@mui/material";
 import { getModules, deleteModule, type ModuleInfo } from "../lib/api";
+import TagFilter, { extractUniqueTags, filterByTags, groupByTags } from "../components/TagFilter";
 
 export default function Modules() {
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // Extract unique tags and filter/group modules
+  const allTags = useMemo(() => extractUniqueTags(modules), [modules]);
+  const filteredModules = useMemo(() => filterByTags(modules, selectedTags), [modules, selectedTags]);
+  const groupedModules = useMemo(() => groupByTags(filteredModules), [filteredModules]);
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
 
   useEffect(() => {
     getModules().then(setModules)
@@ -55,8 +68,30 @@ export default function Modules() {
         </Button>
       </Box>
 
-      <Grid container spacing={3}>
-        {modules.map(mod => (
+      {/* Tag Filter */}
+      <TagFilter
+        tags={allTags}
+        selectedTags={selectedTags}
+        onTagToggle={handleTagToggle}
+        onClearAll={() => setSelectedTags([])}
+      />
+
+      {/* Grouped by tags */}
+      {Object.keys(groupedModules).length > 0 ? (
+        Object.entries(groupedModules).map(([tag, modulesInGroup]) => (
+          <Accordion key={tag} defaultExpanded sx={{ mb: 2, '&:before': { display: 'none' } }}>
+            <AccordionSummary expandIcon={<ExpandMore />} sx={{ bgcolor: 'action.hover' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FolderOpen fontSize="small" color="action" />
+                <Typography variant="subtitle1" fontWeight="medium">
+                  {tag === 'untagged' ? 'Untagged' : tag}
+                </Typography>
+                <Chip label={modulesInGroup.length} size="small" />
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 2 }}>
+              <Grid container spacing={3}>
+                {modulesInGroup.map(mod => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={mod.id}>
             <Card
               sx={{
@@ -84,6 +119,13 @@ export default function Modules() {
                     <Typography variant="caption" color="text.secondary" noWrap display="block">
                       {mod.description || `modules/${mod.id}.ts`}
                     </Typography>
+                    {mod.tags && mod.tags.length > 0 && (
+                      <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                        {mod.tags.map(t => (
+                          <Chip key={t} label={t} size="small" variant="outlined" color="secondary" sx={{ height: 18, fontSize: 10 }} />
+                        ))}
+                      </Box>
+                    )}
                   </Box>
                 </Box>
 
@@ -121,15 +163,16 @@ export default function Modules() {
               </CardActions>
             </Card>
           </Grid>
-        ))}
-        {modules.length === 0 && (
-          <Grid size={{ xs: 12 }}>
-            <Alert severity="info">
-              No modules found. Create one to extend your pipelines!
-            </Alert>
-          </Grid>
-        )}
-      </Grid>
+                ))}
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
+        ))
+      ) : (
+        <Alert severity="info">
+          {modules.length === 0 ? 'No modules found. Create one to extend your pipelines!' : 'No modules match the selected filters.'}
+        </Alert>
+      )}
     </Container>
   );
 }

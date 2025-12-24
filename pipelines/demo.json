@@ -1,6 +1,7 @@
 {
   "name": "Demo Pipeline",
   "description": "Demonstrates all HomeworkCI features: parallel execution, named steps, variables, and step results.",
+  "tags": ["built-in"],
   "steps": [
     {
       "name": "start",

@@ -6,8 +6,9 @@ import {
 import {
   Box, Typography, Button, Paper, IconButton,
   Chip, Stack, CircularProgress, List, ListItem, Tabs, Tab,
-  ListItemButton, ListItemIcon, ListItemText, Alert
+  ListItemButton, ListItemIcon, ListItemText, Alert, TextField
 } from "@mui/material";
+import { Add, LocalOffer } from "@mui/icons-material";
 import Editor from "@monaco-editor/react";
 import { getPipeline, savePipeline, runPipeline, stopPipeline, type Pipeline, getRunHistory, getRunLog, deletePipeline, createPipeline, getVariables, type VariablesConfig } from "../lib/api";
 import type { editor } from "monaco-editor";
@@ -44,6 +45,10 @@ export default function PipelineDetail() {
   // Variables for quick insert
   const [variables, setVariables] = useState<VariablesConfig>({ global: {}, environments: {} });
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+
+  // Tags editing
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
     if (isNew || !id) return;
@@ -131,6 +136,7 @@ export default function PipelineDetail() {
         // Exclude id from editable JSON
         const { id: _, ...rest } = p;
         setJson(JSON.stringify(rest, null, 2));
+        setTags(p.tags || []);
         if (p.isRunning) setIsRunning(true);
       })
       .catch(console.error)
@@ -145,6 +151,8 @@ export default function PipelineDetail() {
   const handleSave = async () => {
     try {
       const updated = JSON.parse(json);
+      // Merge tags from UI into the JSON
+      updated.tags = tags.length > 0 ? tags : undefined;
 
       if (isNew) {
         if (!updated.name) updated.name = "New Pipeline";
@@ -157,6 +165,18 @@ export default function PipelineDetail() {
     } catch (e) {
       console.error("Error saving:", e);
     }
+  };
+
+  const handleAddTag = () => {
+    const tag = newTag.trim().toLowerCase();
+    if (tag && !tags.includes(tag)) {
+      setTags([...tags, tag]);
+    }
+    setNewTag("");
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter(t => t !== tagToRemove));
   };
 
   const handleRun = async () => {
@@ -322,6 +342,37 @@ export default function PipelineDetail() {
             <Alert severity="info" sx={{ mb: 1 }}>
               This is a demo pipeline showcasing all features. It is read-only.
             </Alert>
+          )}
+          
+          {/* Tags Editor Panel */}
+          {!pipeline?.isDemo && (
+            <Paper variant="outlined" sx={{ p: 1, mb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+              <LocalOffer fontSize="small" color="action" sx={{ mr: 0.5 }} />
+              <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                Tags:
+              </Typography>
+              {tags.map(tag => (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  size="small"
+                  color="secondary"
+                  onDelete={() => handleRemoveTag(tag)}
+                  sx={{ fontSize: 11 }}
+                />
+              ))}
+              <TextField
+                size="small"
+                placeholder="Add tag..."
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                sx={{ width: 100, '& .MuiInputBase-input': { fontSize: 12, py: 0.5 } }}
+              />
+              <IconButton size="small" onClick={handleAddTag} disabled={!newTag.trim()}>
+                <Add fontSize="small" />
+              </IconButton>
+            </Paper>
           )}
           
           {/* Quick Insert Variables Panel */}

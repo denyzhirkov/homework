@@ -1,13 +1,15 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { PlayArrow, Schedule, Stop } from "@mui/icons-material";
+import { PlayArrow, Schedule, Stop, FolderOpen } from "@mui/icons-material";
 import {
   Box, Typography, Button, Card, CardContent, CardActions,
-  Grid, Chip, Stack, Container, CircularProgress, LinearProgress
+  Grid, Chip, Stack, Container, CircularProgress, LinearProgress, Accordion, AccordionSummary, AccordionDetails
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { getPipelines, type Pipeline, runPipeline, stopPipeline } from "../lib/api";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import { LiveLogChip } from "../components/LiveLogChip";
+import TagFilter, { extractUniqueTags, filterByTags, groupByTags } from "../components/TagFilter";
 
 // Track progress for running pipelines: { pipelineId: { completed: number, total: number } }
 interface ProgressInfo {
@@ -19,6 +21,18 @@ export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<Record<string, ProgressInfo>>({});
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // Extract unique tags and filter/group pipelines
+  const allTags = useMemo(() => extractUniqueTags(pipelines), [pipelines]);
+  const filteredPipelines = useMemo(() => filterByTags(pipelines, selectedTags), [pipelines, selectedTags]);
+  const groupedPipelines = useMemo(() => groupByTags(filteredPipelines), [filteredPipelines]);
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
 
   // Initial load
   useEffect(() => {
@@ -119,8 +133,30 @@ export default function Pipelines() {
         </Button>
       </Box>
 
-      <Grid container spacing={3}>
-        {pipelines.map(p => (
+      {/* Tag Filter */}
+      <TagFilter
+        tags={allTags}
+        selectedTags={selectedTags}
+        onTagToggle={handleTagToggle}
+        onClearAll={() => setSelectedTags([])}
+      />
+
+      {/* Grouped by tags */}
+      {Object.keys(groupedPipelines).length > 0 ? (
+        Object.entries(groupedPipelines).map(([tag, pipelinesInGroup]) => (
+          <Accordion key={tag} defaultExpanded sx={{ mb: 2, '&:before': { display: 'none' } }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'action.hover' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FolderOpen fontSize="small" color="action" />
+                <Typography variant="subtitle1" fontWeight="medium">
+                  {tag === 'untagged' ? 'Untagged' : tag}
+                </Typography>
+                <Chip label={pipelinesInGroup.length} size="small" />
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 2 }}>
+              <Grid container spacing={3}>
+                {pipelinesInGroup.map(p => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={p.id}>
             <Card
               sx={{
@@ -140,7 +176,7 @@ export default function Pipelines() {
                 <Typography variant="h6" component="div" gutterBottom>
                   {p.name || p.id}
                 </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" mb={1}>
+                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap mb={1}>
                   <Chip label={`${p.steps?.length || 0} steps`} size="small" />
                   {p.isDemo && (
                     <Chip label="Demo" size="small" color="info" />
@@ -162,6 +198,9 @@ export default function Pipelines() {
                       color="success"
                     />
                   )}
+                  {p.tags?.map(t => (
+                    <Chip key={t} label={t} size="small" variant="outlined" color="secondary" />
+                  ))}
                 </Stack>
                 {/* Always reserve space to prevent layout shift */}
                 <Box sx={{ 
@@ -213,28 +252,29 @@ export default function Pipelines() {
               </CardActions>
             </Card>
           </Grid>
-        ))}
-        {pipelines.length === 0 && (
-          <Grid size={{ xs: 12 }}>
-            <Box
-              sx={{
-                p: 8,
-                textAlign: 'center',
-                border: '2px dashed #eee',
-                borderRadius: 2,
-                bgcolor: 'background.paper'
-              }}
-            >
-              <Typography color="text.secondary" gutterBottom>
-                No pipelines found.
-              </Typography>
-              <Button component={Link} to="/pipelines/new">
-                Create your first pipeline
-              </Button>
-            </Box>
-          </Grid>
-        )}
-      </Grid>
+                ))}
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
+        ))
+      ) : (
+        <Box
+          sx={{
+            p: 8,
+            textAlign: 'center',
+            border: '2px dashed #eee',
+            borderRadius: 2,
+            bgcolor: 'background.paper'
+          }}
+        >
+          <Typography color="text.secondary" gutterBottom>
+            {pipelines.length === 0 ? 'No pipelines found.' : 'No pipelines match the selected filters.'}
+          </Typography>
+          <Button component={Link} to="/pipelines/new">
+            Create your first pipeline
+          </Button>
+        </Box>
+      )}
     </Container>
   );
 }

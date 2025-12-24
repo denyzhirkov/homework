@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowBack, Save, Delete, Code, MenuBook } from "@mui/icons-material";
+import { ArrowBack, Save, Delete, Code, MenuBook, Add, LocalOffer } from "@mui/icons-material";
 import {
   Box, Typography, Button, Paper, IconButton,
-  CircularProgress, Stack, Tabs, Tab, Alert
+  CircularProgress, Stack, Tabs, Tab, Alert, Chip, TextField
 } from "@mui/material";
 import Editor from "@monaco-editor/react";
 import { getModuleDetails, saveModule, deleteModule } from "../lib/api";
@@ -24,6 +24,48 @@ function TabPanel({ children, value, index }: TabPanelProps) {
       {value === index && children}
     </Box>
   );
+}
+
+// Parse tags from "// Tags: tag1, tag2" in module comments
+function parseModuleTags(code: string): string[] {
+  const match = code.match(/^\/\/\s*Tags?:\s*(.+)$/mi);
+  if (!match) return [];
+  return match[1].split(',').map(t => t.trim().toLowerCase()).filter(t => t);
+}
+
+// Update or add tags line in module code
+function updateModuleTags(code: string, tags: string[]): string {
+  const tagsLine = tags.length > 0 ? `// Tags: ${tags.join(', ')}` : '';
+  const existingMatch = code.match(/^\/\/\s*Tags?:\s*.+$/mi);
+  
+  if (existingMatch) {
+    // Replace existing tags line
+    if (tags.length > 0) {
+      return code.replace(/^\/\/\s*Tags?:\s*.+$/mi, tagsLine);
+    } else {
+      // Remove tags line if no tags
+      return code.replace(/^\/\/\s*Tags?:\s*.+\n?/mi, '');
+    }
+  } else if (tags.length > 0) {
+    // Add tags line after first comment line (description)
+    const lines = code.split('\n');
+    let insertIndex = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().startsWith('//')) {
+        insertIndex = i + 1;
+        // Find end of first comment block paragraph
+        if (lines[i].trim() === '//' || !lines[i + 1]?.trim().startsWith('//')) {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+    lines.splice(insertIndex, 0, tagsLine);
+    return lines.join('\n');
+  }
+  
+  return code;
 }
 
 // Parse module comments to extract description and usage example
@@ -118,6 +160,8 @@ export async function run(ctx: PipelineContext, params: { foo: string }): Promis
   const [isBuiltIn, setIsBuiltIn] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [activeTab, setActiveTab] = useState(0);
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
     if (isNew) return;
@@ -126,6 +170,7 @@ export async function run(ctx: PipelineContext, params: { foo: string }): Promis
       .then((data) => {
         setCode(data.source);
         setIsBuiltIn(data.isBuiltIn);
+        setTags(parseModuleTags(data.source));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -138,12 +183,27 @@ export async function run(ctx: PipelineContext, params: { foo: string }): Promis
     if (!name) return;
 
     try {
-      await saveModule(name, code);
+      // Update tags in code before saving
+      const updatedCode = updateModuleTags(code, tags);
+      await saveModule(name, updatedCode);
+      setCode(updatedCode);
       alert("Module saved successfully");
       if (isNew) navigate(`/modules/${name}`);
     } catch (e) {
       alert("Error saving: " + e);
     }
+  };
+
+  const handleAddTag = () => {
+    const tag = newTag.trim().toLowerCase();
+    if (tag && !tags.includes(tag)) {
+      setTags([...tags, tag]);
+    }
+    setNewTag("");
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter(t => t !== tagToRemove));
   };
 
   const handleDelete = async () => {
@@ -205,6 +265,38 @@ export async function run(ctx: PipelineContext, params: { foo: string }): Promis
             This is a built-in module. The code is read-only.
           </Alert>
         )}
+        
+        {/* Tags Editor Panel */}
+        {!isBuiltIn && (
+          <Paper variant="outlined" sx={{ p: 1, mb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+            <LocalOffer fontSize="small" color="action" sx={{ mr: 0.5 }} />
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+              Tags:
+            </Typography>
+            {tags.map(tag => (
+              <Chip
+                key={tag}
+                label={tag}
+                size="small"
+                color="secondary"
+                onDelete={() => handleRemoveTag(tag)}
+                sx={{ fontSize: 11 }}
+              />
+            ))}
+            <TextField
+              size="small"
+              placeholder="Add tag..."
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+              sx={{ width: 100, '& .MuiInputBase-input': { fontSize: 12, py: 0.5 } }}
+            />
+            <IconButton size="small" onClick={handleAddTag} disabled={!newTag.trim()}>
+              <Add fontSize="small" />
+            </IconButton>
+          </Paper>
+        )}
+        
         <Paper sx={{ flexGrow: 1, overflow: 'hidden', border: '1px solid #ccc' }}>
           <Editor
             height="100%"

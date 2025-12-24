@@ -6,6 +6,7 @@ export interface Pipeline {
   id: string;
   name: string;
   description?: string;
+  tags?: string[]; // Tags for organizing pipelines into virtual folders
   schedule?: string;
   env?: string; // Environment name to use
   keepWorkDir?: boolean; // Keep sandbox directory after run (for debugging)
@@ -54,6 +55,7 @@ export interface ModuleInfo {
   description: string;
   fullDocs: string;
   isBuiltIn: boolean;
+  tags?: string[]; // Tags parsed from "// Tags: tag1, tag2" comment
 }
 
 // --- Run Types ---

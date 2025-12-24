@@ -52,7 +52,13 @@ export async function listModules(): Promise<ModuleInfo[]> {
 
         } catch (e) { console.error("Error parsing module " + name, e); }
 
-        modules.push({ id: name, description, fullDocs, isBuiltIn: DEFAULT_MODULES.includes(name) });
+        // Parse tags from "// Tags: tag1, tag2" in comments
+        const tagsMatch = fullDocs.match(/^Tags?:\s*(.+)$/mi);
+        const tags = tagsMatch 
+          ? tagsMatch[1].split(',').map(t => t.trim().toLowerCase()).filter(t => t)
+          : [];
+
+        modules.push({ id: name, description, fullDocs, isBuiltIn: DEFAULT_MODULES.includes(name), tags });
       }
     }
   } catch (e) {

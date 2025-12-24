@@ -9,6 +9,7 @@ export interface Pipeline {
   id: string;
   name: string;
   description?: string;
+  tags?: string[];
   schedule?: string;
   env?: string;
   steps: PipelineStep[];
@@ -29,6 +30,7 @@ export interface ModuleInfo {
   description: string;
   fullDocs?: string;
   isBuiltIn?: boolean;
+  tags?: string[];
 }
 
 export interface ModuleDetails {

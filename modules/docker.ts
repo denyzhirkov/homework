@@ -1,5 +1,6 @@
 // Executes a command inside a Docker container.
 // Provides isolated execution environment with resource limits.
+// Tags: built-in
 //
 // Usage Example:
 // {

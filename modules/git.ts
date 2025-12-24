@@ -1,4 +1,5 @@
 // Git operations.
+// Tags: built-in
 //
 // Usage Example:
 // {

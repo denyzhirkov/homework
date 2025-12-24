@@ -1,6 +1,7 @@
 {
   "name": "Docker Demo",
   "description": "Demonstrates Docker module: running commands in isolated containers with different images and settings.",
+  "tags": ["built-in"],
   "steps": [
     {
       "name": "alpine_hello",

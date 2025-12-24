@@ -1,4 +1,5 @@
 // File system operations.
+// Tags: built-in
 //
 // Usage Examples:
 // Read:

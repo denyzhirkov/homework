@@ -1,4 +1,5 @@
 // Executes a shell command.
+// Tags: built-in
 //
 // Usage Example:
 // {

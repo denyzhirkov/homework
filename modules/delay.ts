@@ -1,4 +1,5 @@
 // Waits for a specified time.
+// Tags: built-in
 //
 // Usage Example:
 // {
