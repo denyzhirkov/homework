@@ -2,26 +2,19 @@ import { ensureDir } from "@std/fs";
 import { join, parse } from "@std/path";
 import { config } from "./config.ts";
 
+// Re-export types from central types file
+export type { StepModule, PipelineContext, ModuleResult, ModuleInfo } from "./types/index.ts";
+import type { StepModule, ModuleInfo } from "./types/index.ts";
+
 const MODULES_DIR = config.modulesDir;
 
 // Ensure modules dir exists
 await ensureDir(MODULES_DIR);
 
-export interface StepModule {
-  run: (ctx: any, params: any) => Promise<any>;
-}
-
 const DEFAULT_MODULES = ["shell", "http", "git", "fs", "delay", "docker"];
 
 export function isBuiltInModule(name: string): boolean {
   return DEFAULT_MODULES.includes(name);
-}
-
-export interface ModuleInfo {
-  id: string;
-  description: string;
-  fullDocs: string;
-  isBuiltIn: boolean;
 }
 
 export async function listModules(): Promise<ModuleInfo[]> {

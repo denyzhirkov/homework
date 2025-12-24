@@ -9,8 +9,12 @@
 //     "dir": "./repo"
 //   }
 // }
+//
+// Returns: { "success": true } or { "skipped": true }
 
-export async function run(ctx: any, params: { op: "clone" | "pull"; repo?: string; dir?: string }) {
+import type { PipelineContext } from "../server/types/index.ts";
+
+export async function run(ctx: PipelineContext, params: { op: "clone" | "pull"; repo?: string; dir?: string }): Promise<{ success: true } | { skipped: true }> {
   if (params.op === "clone") {
     if (!params.repo) throw new Error("Repo URL required");
     const cmd = new Deno.Command("git", {

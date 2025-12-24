@@ -239,7 +239,7 @@ export async function runPipeline(id: string) {
       throw new Error(error);
     }
 
-    const resolvedParams = interpolate(step.params || {}, ctx);
+    const resolvedParams = interpolate(step.params || {}, ctx) as Record<string, unknown>;
 
     try {
       const result = await mod.run(ctx, resolvedParams);

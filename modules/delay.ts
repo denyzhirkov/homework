@@ -5,8 +5,12 @@
 //   "module": "delay",
 //   "params": { "ms": 1000 }
 // }
+//
+// Returns: { "waited": <ms> }
 
-export async function run(ctx: any, params: { ms: number }) {
+import type { PipelineContext } from "../server/types/index.ts";
+
+export async function run(ctx: PipelineContext, params: { ms: number }): Promise<{ waited: number }> {
   console.log(`[Delay] Sleeping for ${params.ms}ms...`);
   
   // Support cancellation via AbortSignal

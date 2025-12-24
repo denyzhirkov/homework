@@ -44,6 +44,8 @@
 // - Pipeline is stopped/cancelled
 // - Pipeline fails
 
+import type { PipelineContext } from "../server/types/index.ts";
+
 // Import dynamically to work both in server and standalone contexts
 let runContainer: typeof import("../server/docker-manager.ts").runContainer;
 let config: typeof import("../server/config.ts").config;
@@ -73,7 +75,7 @@ export interface DockerParams {
   removeImage?: boolean; // Remove image after execution
 }
 
-export async function run(ctx: any, params: DockerParams) {
+export async function run(ctx: PipelineContext, params: DockerParams): Promise<{ code: number }> {
   await initImports();
 
   if (!params.cmd) {

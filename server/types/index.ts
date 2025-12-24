@@ -36,8 +36,17 @@ export interface PipelineContext {
 
 // --- Module Types ---
 
+// Valid return types for modules
+export type ModuleResult =
+  | { success: true }
+  | { skipped: true }
+  | { waited: number }
+  | { code: number }
+  | string
+  | Record<string, unknown>;
+
 export interface StepModule {
-  run: (ctx: PipelineContext, params: Record<string, unknown>) => Promise<unknown>;
+  run: (ctx: PipelineContext, params: Record<string, unknown>) => Promise<ModuleResult>;
 }
 
 export interface ModuleInfo {

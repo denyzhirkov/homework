@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
-  Box, Typography, Grid, Card, CardContent, Divider, Button,
+  Box, Typography, Grid, Card, Divider, Button,
   Container, CircularProgress, Paper, Avatar, Chip, LinearProgress
 } from "@mui/material";
 import {
-  AccountTree, Extension, Timer, Storage, ArrowForward
+  AccountTree, Extension, Timer, Storage, ArrowForward, PlayArrow
 } from "@mui/icons-material";
-import { getStats, getPipelines } from "../lib/api";
+import { getStats, getPipelines, runPipeline } from "../lib/api";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import { LiveLogChip } from "../components/LiveLogChip";
 
@@ -122,10 +122,9 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      {/* Quick Actions & Recent */}
-      <Grid container spacing={4}>
-        <Grid size={{ xs: 12, md: 8 }} key="recent">
-          <Typography variant="h6" gutterBottom>Recent Pipelines</Typography>
+      {/* Recent Pipelines */}
+      <Box>
+        <Typography variant="h6" gutterBottom>Recent Pipelines</Typography>
           <Paper variant="outlined">
             {pipelines.length === 0 ? (
               <Box sx={{ p: 3, textAlign: 'center' }}>No pipelines yet.</Box>
@@ -157,9 +156,21 @@ export default function Dashboard() {
                       </Box>
                     </Box>
                   </Box>
-                  <Button component={Link} to={`/pipelines/${p.id}`} size="small" endIcon={<ArrowForward />}>
-                    View
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {!p.isRunning && (
+                      <Button 
+                        size="small" 
+                        variant="contained"
+                        startIcon={<PlayArrow />}
+                        onClick={() => runPipeline(p.id).catch(console.error)}
+                      >
+                        Run
+                      </Button>
+                    )}
+                    <Button component={Link} to={`/pipelines/${p.id}`} size="small" endIcon={<ArrowForward />}>
+                      View
+                    </Button>
+                  </Box>
                 </Box>
                 {/* Progress bar at bottom of item */}
                 {p.isRunning && (
@@ -179,25 +190,7 @@ export default function Dashboard() {
               </Box>
             ))}
           </Paper>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 4 }} key="actions">
-          <Typography variant="h6" gutterBottom>Quick Actions</Typography>
-          <Card variant="outlined">
-            <CardContent>
-              <Button fullWidth variant="contained" component={Link} to="/pipelines/new" sx={{ mb: 2 }}>
-                Create Pipeline
-              </Button>
-              <Button fullWidth variant="outlined" component={Link} to="/modules/new" sx={{ mb: 2 }}>
-                Create Module
-              </Button>
-              <Button fullWidth variant="text" component={Link} to="/variables">
-                Manage Variables
-              </Button>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      </Box>
     </Container>
   );
 }

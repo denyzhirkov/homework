@@ -8,9 +8,11 @@
 //   }
 // }
 //
-// Returns: { "code": 0, "output": "Hello World" }
+// Returns: { "code": 0 }
 
-export async function run(ctx: any, params: { cmd: string }) {
+import type { PipelineContext } from "../server/types/index.ts";
+
+export async function run(ctx: PipelineContext, params: { cmd: string }): Promise<{ code: number }> {
   if (ctx.log) ctx.log(`[Shell] Executing: ${params.cmd}`);
 
   // Wrap command with exec so SIGKILL kills the actual command, not just the shell

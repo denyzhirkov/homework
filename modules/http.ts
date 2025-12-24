@@ -9,8 +9,12 @@
 //     "body": { "key": "value" }
 //   }
 // }
+//
+// Returns: JSON object or string (response body)
 
-export async function run(ctx: any, params: { url: string; method?: string; body?: any }) {
+import type { PipelineContext, ModuleResult } from "../server/types/index.ts";
+
+export async function run(ctx: PipelineContext, params: { url: string; method?: string; body?: unknown }): Promise<ModuleResult> {
   try {
     const res = await fetch(params.url, {
       method: params.method || "GET",

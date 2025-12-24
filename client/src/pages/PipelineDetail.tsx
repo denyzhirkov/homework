@@ -9,7 +9,8 @@ import {
   ListItemButton, ListItemIcon, ListItemText, Alert
 } from "@mui/material";
 import Editor from "@monaco-editor/react";
-import { getPipeline, savePipeline, runPipeline, stopPipeline, type Pipeline, getRunHistory, getRunLog, deletePipeline, createPipeline } from "../lib/api";
+import { getPipeline, savePipeline, runPipeline, stopPipeline, type Pipeline, getRunHistory, getRunLog, deletePipeline, createPipeline, getVariables, type VariablesConfig } from "../lib/api";
+import type { editor } from "monaco-editor";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 
 type RunEntry = {
@@ -40,11 +41,40 @@ export default function PipelineDetail() {
   const [isRunning, setIsRunning] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
+  // Variables for quick insert
+  const [variables, setVariables] = useState<VariablesConfig>({ global: {}, environments: {} });
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+
   useEffect(() => {
     if (isNew || !id) return;
     loadPipelineData();
     loadHistory();
   }, [id]);
+
+  // Load variables for quick insert
+  useEffect(() => {
+    getVariables().then(setVariables).catch(() => {});
+  }, []);
+
+  // Insert text at cursor position in editor
+  const insertAtCursor = (text: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    if (selection) {
+      editor.executeEdits("quick-insert", [{
+        range: selection,
+        text,
+        forceMoveMarkers: true
+      }]);
+      editor.focus();
+    }
+  };
+
+  const handleEditorMount = (editor: editor.IStandaloneCodeEditor) => {
+    editorRef.current = editor;
+  };
 
   // WebSocket subscription for live updates
   const handleWSEvent = useCallback((event: WSEvent) => {
@@ -293,12 +323,76 @@ export default function PipelineDetail() {
               This is a demo pipeline showcasing all features. It is read-only.
             </Alert>
           )}
+          
+          {/* Quick Insert Variables Panel */}
+          {!pipeline?.isDemo && (
+            <Paper variant="outlined" sx={{ p: 1, mb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                Quick Insert:
+              </Typography>
+              <Chip 
+                label="${prev}" 
+                size="small" 
+                variant="outlined"
+                onClick={() => insertAtCursor('${prev}')}
+                sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+              />
+              <Chip 
+                label="${results.}" 
+                size="small" 
+                variant="outlined"
+                onClick={() => insertAtCursor('${results.}')}
+                sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+              />
+              
+              {Object.keys(variables.global).length > 0 && (
+                <>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mr: 0.5 }}>
+                    Global:
+                  </Typography>
+                  {Object.keys(variables.global).map(key => (
+                    <Chip
+                      key={key}
+                      label={key}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      onClick={() => insertAtCursor(`\${env.${key}}`)}
+                      sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                    />
+                  ))}
+                </>
+              )}
+              
+              {pipeline?.env && variables.environments[pipeline.env] && 
+                Object.keys(variables.environments[pipeline.env]).length > 0 && (
+                <>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mr: 0.5 }}>
+                    {pipeline.env}:
+                  </Typography>
+                  {Object.keys(variables.environments[pipeline.env]).map(key => (
+                    <Chip
+                      key={key}
+                      label={key}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                      onClick={() => insertAtCursor(`\${env.${key}}`)}
+                      sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                    />
+                  ))}
+                </>
+              )}
+            </Paper>
+          )}
+          
           <Paper sx={{ flexGrow: 1, overflow: 'hidden', border: '1px solid #ccc' }}>
             <Editor
               height="100%"
               defaultLanguage="json"
               value={json}
               onChange={(val) => !pipeline?.isDemo && setJson(val || "")}
+              onMount={handleEditorMount}
               options={{ minimap: { enabled: false }, fontSize: 14, readOnly: pipeline?.isDemo }}
             />
           </Paper>

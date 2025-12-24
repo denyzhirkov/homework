@@ -1,0 +1,14 @@
+{
+  "name": "System Monitor",
+  "description": "Logs CPU and RAM usage every minute",
+  "schedule": "* * * * *",
+  "steps": [
+    {
+      "description": "Log system resources",
+      "module": "shell",
+      "params": {
+        "cmd": "echo '=== System Stats ===' && date && echo '--- CPU Load ---' && cat /proc/loadavg && echo '--- Memory ---' && cat /proc/meminfo | head -5 && echo '--- Disk ---' && df -h / | tail -1"
+      }
+    }
+  ]
+}

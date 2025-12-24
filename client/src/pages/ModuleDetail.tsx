@@ -85,9 +85,31 @@ export default function ModuleDetail() {
 //     "foo": "bar"
 //   }
 // }
+//
+// Returns: { "success": true }
+//
+// Valid return types (ModuleResult):
+//   - { success: true }
+//   - { skipped: true }
+//   - { waited: number }
+//   - { code: number }
+//   - string
+//   - Record<string, unknown>
+//
+// PipelineContext properties:
+//   ctx.workDir: string       - Isolated sandbox directory
+//   ctx.env: Record<string, string> - Environment variables
+//   ctx.prev: unknown         - Result of the previous step
+//   ctx.results: Record<string, unknown> - Results from named steps
+//   ctx.pipelineId: string    - Current pipeline ID
+//   ctx.startTime: number     - Pipeline start timestamp
+//   ctx.log(msg): void        - Log a message (sensitive data is masked)
+//   ctx.signal: AbortSignal   - Signal for pipeline cancellation
 
-export async function run(ctx: any, params: any) {
-  console.log("Hello from module", params);
+import type { PipelineContext, ModuleResult } from "../server/types/index.ts";
+
+export async function run(ctx: PipelineContext, params: { foo: string }): Promise<ModuleResult> {
+  ctx.log("Hello from module: " + params.foo);
   return { success: true };
 }
 `;
