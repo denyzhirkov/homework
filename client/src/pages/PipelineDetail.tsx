@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-  ArrowBack, Save, PlayArrow, CheckCircle, Error as ErrorIcon, Delete, Edit, Stop
+  ArrowBack, Save, PlayArrow, CheckCircle, PriorityHigh, Cancel, Delete, Edit, Stop
 } from "@mui/icons-material";
 import {
   Box, Typography, Button, Paper, IconButton,
@@ -304,9 +304,21 @@ export default function PipelineDetail() {
                   onClick={() => handleRunClick(run.runId)}
                 >
                   <ListItemIcon sx={{ minWidth: 28 }}>
-                    {run.status === 'success' ? <CheckCircle color="success" fontSize="small" /> :
-                      run.status === 'fail' ? <ErrorIcon color="error" fontSize="small" /> :
-                        <CircularProgress size={14} />}
+                    {run.status === 'success' ? (
+                      <CheckCircle color="success" fontSize="small" />
+                    ) : run.status === 'fail' ? (
+                      <Box sx={{ 
+                        width: 20, height: 20, borderRadius: '50%', 
+                        bgcolor: 'error.main', 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                      }}>
+                        <PriorityHigh sx={{ fontSize: 14, color: 'white' }} />
+                      </Box>
+                    ) : run.status === 'cancelled' ? (
+                      <Cancel color="warning" fontSize="small" />
+                    ) : (
+                      <CircularProgress size={14} />
+                    )}
                   </ListItemIcon>
                   <ListItemText
                     primary={new Date(Number(run.runId)).toLocaleTimeString()}
