@@ -49,15 +49,13 @@ export default function Modules() {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Modules
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5" component="h1">
+          Modules
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1.5 }}>
+            — Extend functionality with custom TypeScript steps
           </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            Extend functionality with custom TypeScript steps.
-          </Typography>
-        </Box>
+        </Typography>
         <Button
           component={Link}
           to="/modules/new"

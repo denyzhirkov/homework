@@ -115,15 +115,13 @@ export default function Pipelines() {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Pipelines
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5" component="h1">
+          Pipelines
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1.5 }}>
+            — Manage and monitor your automation workflows
           </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            Manage and monitor your automation workflows.
-          </Typography>
-        </Box>
+        </Typography>
         <Button
           component={Link}
           to="/pipelines/new"

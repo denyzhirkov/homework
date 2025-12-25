@@ -33,6 +33,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar>
           <Typography variant="h6" noWrap component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <img src="/favicon.svg" alt="HomeworkCI logo" style={{ width: 28, height: 28 }} />
             HomeworkCI
             {version && (
               <Chip 

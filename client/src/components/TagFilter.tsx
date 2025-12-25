@@ -12,7 +12,7 @@ export default function TagFilter({ tags, selectedTags, onTagToggle, onClearAll 
   if (tags.length === 0) return null;
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 3 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
       <LocalOffer fontSize="small" color="action" />
       <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
         Filter:

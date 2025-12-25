@@ -95,15 +95,13 @@ export default function Variables() {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Variables
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5" component="h1">
+          Variables
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1.5 }}>
+            — Manage global and environment-specific variables
           </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            Manage global and environment-specific variables.
-          </Typography>
-        </Box>
+        </Typography>
         <Button
           variant="contained"
           startIcon={<Save />}
@@ -113,9 +111,11 @@ export default function Variables() {
         </Button>
       </Box>
 
-      <Typography variant="h5" gutterBottom sx={{ mt: 4 }}>Global Variables</Typography>
-      <Typography variant="body2" color="text.secondary" paragraph>
-        Available in all pipelines.
+      <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+        Global Variables
+        <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+          — Available in all pipelines
+        </Typography>
       </Typography>
 
       <Paper sx={{ p: 3, mb: 4 }}>
@@ -136,9 +136,11 @@ export default function Variables() {
         <Button startIcon={<Add />} onClick={addGlobal}>Add Variable</Button>
       </Paper>
 
-      <Typography variant="h5" gutterBottom>Environments</Typography>
-      <Typography variant="body2" color="text.secondary" paragraph>
-        Specific sets of variables active only when a pipeline selects this environment.
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Environments
+        <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+          — Variables active when pipeline selects this environment
+        </Typography>
       </Typography>
 
       {Object.entries(config.environments).map(([envName, vars]) => (
