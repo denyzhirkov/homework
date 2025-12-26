@@ -106,7 +106,8 @@ function createPipelineContext(
   pipelineId: string,
   startTime: number,
   sanitizedLog: (msg: string) => void,
-  signal: AbortSignal
+  signal: AbortSignal,
+  inputs: Record<string, string | boolean> = {}
 ): PipelineContext {
   // Internal mutable storage
   const resultsStorage: Record<string, unknown> = Object.create(null);
@@ -116,6 +117,7 @@ function createPipelineContext(
   const frozenFields = Object.freeze({
     workDir: sandboxPath,
     env: Object.freeze({ ...mergedEnv }),
+    inputs: Object.freeze({ ...inputs }),
     pipelineId,
     startTime,
     log: sanitizedLog,
@@ -126,6 +128,7 @@ function createPipelineContext(
   return Object.create(null, {
     workDir: { value: frozenFields.workDir, writable: false, enumerable: true },
     env: { value: frozenFields.env, writable: false, enumerable: true },
+    inputs: { value: frozenFields.inputs, writable: false, enumerable: true },
     pipelineId: { value: frozenFields.pipelineId, writable: false, enumerable: true },
     startTime: { value: frozenFields.startTime, writable: false, enumerable: true },
     log: { value: frozenFields.log, writable: false, enumerable: true },
@@ -167,7 +170,7 @@ function createPipelineContext(
 
 // --- Pipeline execution ---
 
-export async function runPipeline(id: string) {
+export async function runPipeline(id: string, runtimeInputs?: Record<string, string | boolean>) {
   if (runningPipelines.has(id)) {
     throw new Error(`Pipeline ${id} is already running`);
   }
@@ -178,6 +181,19 @@ export async function runPipeline(id: string) {
   }
 
   console.log(`[Engine] Starting pipeline: ${pipeline.name} (${id})`);
+
+  // Merge default inputs with runtime inputs
+  const inputs: Record<string, string | boolean> = {};
+  if (pipeline.inputs) {
+    for (const input of pipeline.inputs) {
+      if (input.default !== undefined) {
+        inputs[input.name] = input.default;
+      }
+    }
+  }
+  if (runtimeInputs) {
+    Object.assign(inputs, runtimeInputs);
+  }
 
   // Validate pipeline ID
   validatePipelineId(id);
@@ -228,7 +244,7 @@ export async function runPipeline(id: string) {
 
   // Create context
   const mergedEnv = await getMergedEnv(pipeline.env);
-  const ctx = createPipelineContext(sandboxPath, mergedEnv, id, startTime, sanitizedLog, controller.signal);
+  const ctx = createPipelineContext(sandboxPath, mergedEnv, id, startTime, sanitizedLog, controller.signal, inputs);
 
   sanitizedLog(`[Sandbox] Created isolated working directory: ${sandboxPath}`);
 

@@ -10,6 +10,7 @@ export interface Pipeline {
   schedule?: string;
   env?: string; // Environment name to use
   keepWorkDir?: boolean; // Keep sandbox directory after run (for debugging)
+  inputs?: PipelineInput[]; // Input parameters for parameterized runs
   steps: PipelineStep[];
 }
 
@@ -21,11 +22,22 @@ export interface PipelineStep {
   parallel?: string; // Group name for parallel execution
 }
 
+// --- Pipeline Input Types ---
+
+export interface PipelineInput {
+  name: string;
+  type: "string" | "boolean" | "select";
+  label?: string;
+  default?: string | boolean;
+  options?: string[]; // for type: "select"
+}
+
 // --- Context Types ---
 
 export interface PipelineContext {
   readonly workDir: string; // Isolated sandbox directory
   readonly env: Readonly<Record<string, string>>;
+  readonly inputs: Readonly<Record<string, string | boolean>>; // Runtime input values
   readonly results: Record<string, unknown>;
   prev: unknown;
   readonly pipelineId: string;

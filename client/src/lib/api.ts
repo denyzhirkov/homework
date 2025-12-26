@@ -12,6 +12,7 @@ export interface Pipeline {
   tags?: string[];
   schedule?: string;
   env?: string;
+  inputs?: PipelineInput[];
   steps: PipelineStep[];
   isRunning?: boolean;
   isDemo?: boolean;
@@ -23,6 +24,14 @@ export interface PipelineStep {
   module: string;
   params?: Record<string, unknown>;
   parallel?: string;
+}
+
+export interface PipelineInput {
+  name: string;
+  type: "string" | "boolean" | "select";
+  label?: string;
+  default?: string | boolean;
+  options?: string[]; // for type: "select"
 }
 
 export interface ModuleInfo {
@@ -79,8 +88,8 @@ export const savePipeline = (id: string, pipeline: Omit<Pipeline, "id">) =>
 export const deletePipeline = (id: string) => 
   api.delete<{ success: boolean }>(`/pipelines/${encodeURIComponent(id)}`);
 
-export const runPipeline = (id: string) => 
-  api.post<RunResult>(`/pipelines/${encodeURIComponent(id)}/run`);
+export const runPipeline = (id: string, inputs?: Record<string, string | boolean>) => 
+  api.post<RunResult>(`/pipelines/${encodeURIComponent(id)}/run`, inputs ? { inputs } : undefined);
 
 export const stopPipeline = (id: string) => 
   api.post<{ success: boolean }>(`/pipelines/${encodeURIComponent(id)}/stop`);

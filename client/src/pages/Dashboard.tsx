@@ -2,12 +2,13 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   Box, Typography, Grid, Card, Divider, Button,
-  Container, CircularProgress, Paper, Avatar, Chip, LinearProgress
+  Container, CircularProgress, Paper, Avatar, Chip, LinearProgress, Tooltip,
+  Dialog, DialogTitle, DialogContent, DialogActions, FormControlLabel, Checkbox, Select, MenuItem, FormControl, InputLabel, TextField, Stack
 } from "@mui/material";
 import {
-  AccountTree, Extension, Timer, Storage, ArrowForward, PlayArrow
+  AccountTree, Extension, Timer, Storage, ArrowForward, PlayArrow, Settings
 } from "@mui/icons-material";
-import { getStats, getPipelines, runPipeline } from "../lib/api";
+import { getStats, getPipelines, runPipeline, type Pipeline, type PipelineInput } from "../lib/api";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import { LiveLogChip } from "../components/LiveLogChip";
 
@@ -19,13 +20,18 @@ interface ProgressInfo {
 
 export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
-  const [pipelines, setPipelines] = useState<any[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<Record<string, ProgressInfo>>({});
   const [systemMetrics, setSystemMetrics] = useState<{ memoryPercent: string; cpuLoad: string }>({
     memoryPercent: "—",
     cpuLoad: "—",
   });
+
+  // Run modal state
+  const [showRunModal, setShowRunModal] = useState(false);
+  const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
+  const [inputValues, setInputValues] = useState<Record<string, string | boolean>>({});
 
   // Initial load
   useEffect(() => {
@@ -90,6 +96,35 @@ export default function Dashboard() {
   }, []);
 
   useWebSocket(handleEvent);
+
+  // Initialize input values with defaults
+  const initializeInputValues = (pipeline: Pipeline) => {
+    const defaults: Record<string, string | boolean> = {};
+    if (pipeline.inputs) {
+      for (const input of pipeline.inputs) {
+        if (input.default !== undefined) {
+          defaults[input.name] = input.default;
+        } else if (input.type === "boolean") {
+          defaults[input.name] = false;
+        } else if (input.type === "select" && input.options?.length) {
+          defaults[input.name] = input.options[0];
+        } else {
+          defaults[input.name] = "";
+        }
+      }
+    }
+    setInputValues(defaults);
+  };
+
+  const executeRun = async (id: string, inputs?: Record<string, string | boolean>) => {
+    try {
+      setShowRunModal(false);
+      setSelectedPipeline(null);
+      await runPipeline(id, inputs);
+    } catch (err) {
+      console.error("Error triggering pipeline:", err);
+    }
+  };
 
   if (loading) return <Box sx={{ p: 4, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
 
@@ -193,14 +228,32 @@ export default function Dashboard() {
                   </Box>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     {!p.isRunning && (
-                      <Button 
-                        size="small" 
-                        variant="contained"
-                        startIcon={<PlayArrow />}
-                        onClick={() => runPipeline(p.id).catch(console.error)}
-                      >
-                        Run
-                      </Button>
+                      <>
+                        {p.inputs && p.inputs.length > 0 && (
+                          <Tooltip title="Configure parameters" arrow>
+                            <Button 
+                              size="small" 
+                              variant="contained"
+                              color="primary"
+                              onClick={() => { setSelectedPipeline(p); initializeInputValues(p); setShowRunModal(true); }}
+                              sx={{ minWidth: 36, px: 1 }}
+                            >
+                              <Settings fontSize="small" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                        <Tooltip title={p.inputs?.length ? "Run with default parameters" : "Run pipeline"} arrow>
+                          <Button 
+                            size="small" 
+                            variant="contained"
+                            color="success"
+                            startIcon={<PlayArrow />}
+                            onClick={() => executeRun(p.id)}
+                          >
+                            Run
+                          </Button>
+                        </Tooltip>
+                      </>
                     )}
                     <Button component={Link} to={`/pipelines/${p.id}`} size="small" endIcon={<ArrowForward />}>
                       View
@@ -226,6 +279,64 @@ export default function Dashboard() {
             ))}
           </Paper>
       </Box>
+
+      {/* Run with Inputs Modal */}
+      <Dialog open={showRunModal} onClose={() => setShowRunModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Run {selectedPipeline?.name || 'Pipeline'}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {selectedPipeline?.inputs?.map((input: PipelineInput) => (
+              <Box key={input.name}>
+                {input.type === "string" && (
+                  <TextField
+                    fullWidth
+                    label={input.label || input.name}
+                    value={inputValues[input.name] || ""}
+                    onChange={(e) => setInputValues(prev => ({ ...prev, [input.name]: e.target.value }))}
+                    size="small"
+                  />
+                )}
+                {input.type === "boolean" && (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={Boolean(inputValues[input.name])}
+                        onChange={(e) => setInputValues(prev => ({ ...prev, [input.name]: e.target.checked }))}
+                      />
+                    }
+                    label={input.label || input.name}
+                  />
+                )}
+                {input.type === "select" && (
+                  <FormControl fullWidth size="small">
+                    <InputLabel>{input.label || input.name}</InputLabel>
+                    <Select
+                      value={inputValues[input.name] || ""}
+                      label={input.label || input.name}
+                      onChange={(e) => setInputValues(prev => ({ ...prev, [input.name]: e.target.value }))}
+                    >
+                      {input.options?.map(opt => (
+                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </Box>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowRunModal(false)}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            color="success" 
+            startIcon={<PlayArrow />} 
+            onClick={() => selectedPipeline && executeRun(selectedPipeline.id, inputValues)}
+          >
+            Run
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

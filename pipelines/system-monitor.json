@@ -1,13 +1,17 @@
 {
   "name": "System Monitor",
-  "description": "Logs CPU and RAM usage every minute",
+  "description": "Logs CPU and RAM usage - can be run manually with custom settings or scheduled",
   "schedule": "* * * * *",
+  "inputs": [
+    { "name": "showDisk", "type": "boolean", "label": "Show disk usage", "default": true },
+    { "name": "memLines", "type": "select", "label": "Memory info lines", "options": ["3", "5", "10", "20"], "default": "5" }
+  ],
   "steps": [
     {
       "description": "Log system resources",
       "module": "shell",
       "params": {
-        "cmd": "echo '=== System Stats ===' && date && echo '--- CPU Load ---' && cat /proc/loadavg && echo '--- Memory ---' && cat /proc/meminfo | head -5 && echo '--- Disk ---' && df -h / | tail -1"
+        "cmd": "echo '=== System Stats ===' && date && echo '--- CPU Load ---' && cat /proc/loadavg && echo '--- Memory (${inputs.memLines} lines) ---' && cat /proc/meminfo | head -${inputs.memLines} && if [ '${inputs.showDisk}' = 'true' ]; then echo '--- Disk ---' && df -h / | tail -1; fi"
       }
     }
   ]

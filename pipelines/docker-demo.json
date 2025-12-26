@@ -2,14 +2,19 @@
   "name": "Docker Demo",
   "description": "Demonstrates Docker module: running commands in isolated containers with different images and settings.",
   "tags": ["built-in"],
+  "inputs": [
+    { "name": "alpineVersion", "type": "select", "label": "Alpine Version", "options": ["3.19", "3.18", "3.17", "latest"], "default": "3.19" },
+    { "name": "testMessage", "type": "string", "label": "Test Message", "default": "Hello from Docker!" },
+    { "name": "isolatedNetwork", "type": "boolean", "label": "Use isolated network", "default": true }
+  ],
   "steps": [
     {
       "name": "alpine_hello",
       "description": "Simple command in Alpine container",
       "module": "docker",
       "params": {
-        "image": "alpine:3.19",
-        "cmd": "echo '🐳 Hello from Alpine container!' && cat /etc/os-release | head -2"
+        "image": "alpine:${inputs.alpineVersion}",
+        "cmd": "echo '🐳 ${inputs.testMessage}' && cat /etc/os-release | head -2"
       }
     },
     {

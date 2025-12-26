@@ -1,18 +1,21 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-  ArrowBack, Save, PlayArrow, CheckCircle, PriorityHigh, Cancel, Delete, Edit, Stop
+  ArrowBack, Save, PlayArrow, CheckCircle, PriorityHigh, Cancel, Delete, Edit, Stop, Settings
 } from "@mui/icons-material";
 import {
   Box, Typography, Button, Paper, IconButton,
   Chip, Stack, CircularProgress, List, ListItem, Tabs, Tab,
-  ListItemButton, ListItemIcon, ListItemText, Alert, TextField
+  ListItemButton, ListItemIcon, ListItemText, Alert, TextField,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  FormControlLabel, Checkbox, Select, MenuItem, FormControl, InputLabel, Tooltip
 } from "@mui/material";
 import { Add, LocalOffer } from "@mui/icons-material";
 import Editor from "@monaco-editor/react";
-import { getPipeline, savePipeline, runPipeline, stopPipeline, type Pipeline, getRunHistory, getRunLog, deletePipeline, createPipeline, getVariables, type VariablesConfig } from "../lib/api";
+import { getPipeline, savePipeline, runPipeline, stopPipeline, type Pipeline, type PipelineInput, getRunHistory, getRunLog, deletePipeline, createPipeline, getVariables, type VariablesConfig } from "../lib/api";
 import type { editor } from "monaco-editor";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
+import LogViewer from "../components/LogViewer";
 
 type RunEntry = {
   pipelineId: string;
@@ -49,6 +52,10 @@ export default function PipelineDetail() {
   // Tags editing
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+
+  // Run modal for input parameters
+  const [showRunModal, setShowRunModal] = useState(false);
+  const [inputValues, setInputValues] = useState<Record<string, string | boolean>>({});
 
   useEffect(() => {
     if (isNew || !id) return;
@@ -179,15 +186,46 @@ export default function PipelineDetail() {
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
+  // Initialize input values with defaults when opening modal
+  const initializeInputValues = () => {
+    const defaults: Record<string, string | boolean> = {};
+    if (pipeline?.inputs) {
+      for (const input of pipeline.inputs) {
+        if (input.default !== undefined) {
+          defaults[input.name] = input.default;
+        } else if (input.type === "boolean") {
+          defaults[input.name] = false;
+        } else if (input.type === "select" && input.options?.length) {
+          defaults[input.name] = input.options[0];
+        } else {
+          defaults[input.name] = "";
+        }
+      }
+    }
+    setInputValues(defaults);
+  };
+
   const handleRun = async () => {
     if (!id || isRunning) return;
+    await executeRun();
+  };
+
+  const handleOpenModal = () => {
+    if (!id || isRunning) return;
+    initializeInputValues();
+    setShowRunModal(true);
+  };
+
+  const executeRun = async (inputs?: Record<string, string | boolean>) => {
+    if (!id) return;
     try {
+      setShowRunModal(false);
       setLiveLogs("Requesting run...\n");
       setSelectedRun('live');
       setActiveTab(0);
       setIsRunning(true);
 
-      await runPipeline(id);
+      await runPipeline(id, inputs);
     } catch (e) {
       console.error("Error:", e);
       setIsRunning(false);
@@ -248,9 +286,22 @@ export default function PipelineDetail() {
               Stop
             </Button>
           ) : (
-            <Button variant="contained" color="success" size="small" startIcon={<PlayArrow />} onClick={handleRun} disabled={isNew}>
-              Run
-            </Button>
+            <>
+              {pipeline?.inputs && pipeline.inputs.length > 0 && (
+                <Tooltip title="Configure parameters" arrow>
+                  <Button variant="contained" color="primary" size="small" onClick={handleOpenModal} disabled={isNew} sx={{ minWidth: 36, px: 1 }}>
+                    <Settings fontSize="small" />
+                  </Button>
+                </Tooltip>
+              )}
+              <Tooltip title={pipeline?.inputs?.length ? "Run with default parameters" : "Run pipeline"} arrow>
+                <span>
+                  <Button variant="contained" color="success" size="small" startIcon={<PlayArrow />} onClick={handleRun} disabled={isNew}>
+                    Run
+                  </Button>
+                </span>
+              </Tooltip>
+            </>
           )}
           {activeTab === 1 && !pipeline?.isDemo && (
             <>
@@ -329,15 +380,20 @@ export default function PipelineDetail() {
           {/* Log Content */}
           <Box
             ref={logContainerRef}
-            sx={{ flex: 1, p: 2, overflowY: 'auto', bgcolor: '#1e1e1e', color: '#0f0', fontFamily: 'monospace', fontSize: 12 }}
+            sx={{ flex: 1, overflowY: 'auto', bgcolor: '#1e1e1e', fontFamily: 'monospace', fontSize: 12 }}
           >
             {selectedRun === 'live' ? (
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{liveLogs || "Waiting for logs..."}</pre>
+              <LogViewer content={liveLogs} isLive />
             ) : selectedRun ? (
-              logLoading ? <CircularProgress size={20} /> :
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{logContent}</pre>
+              logLoading ? (
+                <Box sx={{ p: 4, display: 'flex', justifyContent: 'center' }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : (
+                <LogViewer content={logContent} />
+              )
             ) : (
-              <Typography color="gray" sx={{ mt: 4, textAlign: 'center' }}>
+              <Typography color="gray" sx={{ p: 4, textAlign: 'center' }}>
                 Select a run to view logs
               </Typography>
             )}
@@ -457,6 +513,59 @@ export default function PipelineDetail() {
           </Paper>
         </Box>
       )}
+
+      {/* Run with Inputs Modal */}
+      <Dialog open={showRunModal} onClose={() => setShowRunModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Run Pipeline with Parameters</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {pipeline?.inputs?.map((input: PipelineInput) => (
+              <Box key={input.name}>
+                {input.type === "string" && (
+                  <TextField
+                    fullWidth
+                    label={input.label || input.name}
+                    value={inputValues[input.name] || ""}
+                    onChange={(e) => setInputValues(prev => ({ ...prev, [input.name]: e.target.value }))}
+                    size="small"
+                  />
+                )}
+                {input.type === "boolean" && (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={Boolean(inputValues[input.name])}
+                        onChange={(e) => setInputValues(prev => ({ ...prev, [input.name]: e.target.checked }))}
+                      />
+                    }
+                    label={input.label || input.name}
+                  />
+                )}
+                {input.type === "select" && (
+                  <FormControl fullWidth size="small">
+                    <InputLabel>{input.label || input.name}</InputLabel>
+                    <Select
+                      value={inputValues[input.name] || ""}
+                      label={input.label || input.name}
+                      onChange={(e) => setInputValues(prev => ({ ...prev, [input.name]: e.target.value }))}
+                    >
+                      {input.options?.map(opt => (
+                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </Box>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowRunModal(false)}>Cancel</Button>
+          <Button variant="contained" color="success" startIcon={<PlayArrow />} onClick={() => executeRun(inputValues)}>
+            Run
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

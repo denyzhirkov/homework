@@ -78,7 +78,10 @@ app.post("/:id/run", async (c) => {
   const id = c.req.param("id");
   console.log(`[API] Triggering pipeline ${id}`);
   try {
-    const result = await runPipeline(id);
+    // Parse optional inputs from request body
+    const body = await c.req.json().catch(() => ({}));
+    const inputs = body.inputs as Record<string, string | boolean> | undefined;
+    const result = await runPipeline(id, inputs);
     return c.json(result);
   } catch (e) {
     return c.json({ error: String(e) }, 500);

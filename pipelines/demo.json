@@ -1,22 +1,27 @@
 {
   "name": "Demo Pipeline",
-  "description": "Demonstrates all HomeworkCI features: parallel execution, named steps, variables, and step results.",
+  "description": "Demonstrates all HomeworkCI features: parallel execution, named steps, variables, step results, and input parameters.",
   "tags": ["built-in"],
+  "inputs": [
+    { "name": "userId", "type": "select", "label": "User ID to fetch", "options": ["1", "2", "3", "5", "10"], "default": "1" },
+    { "name": "delayMs", "type": "string", "label": "Delay (ms)", "default": "1000" },
+    { "name": "verbose", "type": "boolean", "label": "Verbose output", "default": false }
+  ],
   "steps": [
     {
       "name": "start",
-      "description": "Log pipeline start",
+      "description": "Log pipeline start with inputs",
       "module": "shell",
       "params": {
-        "cmd": "echo '🚀 Starting demo pipeline...'"
+        "cmd": "echo '🚀 Starting demo pipeline...' && echo 'User ID: ${inputs.userId}, Delay: ${inputs.delayMs}ms, Verbose: ${inputs.verbose}'"
       }
     },
     {
       "name": "api1",
-      "description": "Fetch users data",
+      "description": "Fetch users data (using input userId)",
       "module": "http",
       "params": {
-        "url": "https://jsonplaceholder.typicode.com/users/1"
+        "url": "https://jsonplaceholder.typicode.com/users/${inputs.userId}"
       },
       "parallel": "fetch"
     },
@@ -25,7 +30,7 @@
       "description": "Fetch posts data",
       "module": "http",
       "params": {
-        "url": "https://jsonplaceholder.typicode.com/posts/1"
+        "url": "https://jsonplaceholder.typicode.com/posts/${inputs.userId}"
       },
       "parallel": "fetch"
     },
@@ -34,7 +39,7 @@
       "description": "Fetch comments data",
       "module": "http",
       "params": {
-        "url": "https://jsonplaceholder.typicode.com/comments/1"
+        "url": "https://jsonplaceholder.typicode.com/comments/${inputs.userId}"
       },
       "parallel": "fetch"
     },
@@ -47,10 +52,10 @@
     },
     {
       "name": "delay_demo",
-      "description": "Demonstrate delay module",
+      "description": "Demonstrate delay module (using input delayMs)",
       "module": "delay",
       "params": {
-        "ms": 1000
+        "ms": "${inputs.delayMs}"
       }
     },
     {
