@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import {
   AppBar, Toolbar, Typography, Drawer, List, ListItem,
-  ListItemButton, ListItemIcon, ListItemText, Box, CssBaseline, Chip
+  ListItemButton, ListItemIcon, ListItemText, Box, CssBaseline, Chip, Divider
 } from "@mui/material";
 import {
-  AccountTree, Extension, Settings, Home
+  AccountTree, Extension, Settings, Home, MenuBook
 } from "@mui/icons-material";
 import { Link } from "react-router-dom";
 import { useWebSocket } from "../lib/useWebSocket";
@@ -83,6 +83,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <ListItemButton component={Link} to="/variables">
                 <ListItemIcon><Settings /></ListItemIcon>
                 <ListItemText primary="Variables" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+          <Divider sx={{ my: 1 }} />
+          <List>
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/docs">
+                <ListItemIcon><MenuBook /></ListItemIcon>
+                <ListItemText primary="Documentation" />
               </ListItemButton>
             </ListItem>
           </List>
