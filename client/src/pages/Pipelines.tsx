@@ -11,6 +11,7 @@ import { getPipelines, type Pipeline, type PipelineInput, runPipeline, stopPipel
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import { LiveLogChip } from "../components/LiveLogChip";
 import TagFilter, { extractUniqueTags, filterByTags, groupByTags } from "../components/TagFilter";
+import { initializeInputValues } from "../lib/pipeline-inputs";
 
 // Track progress for running pipelines: { pipelineId: { completed: number, total: number } }
 interface ProgressInfo {
@@ -94,25 +95,6 @@ export default function Pipelines() {
 
   useWebSocket(handleEvent);
 
-  // Initialize input values with defaults
-  const initializeInputValues = (pipeline: Pipeline) => {
-    const defaults: Record<string, string | boolean> = {};
-    if (pipeline.inputs) {
-      for (const input of pipeline.inputs) {
-        if (input.default !== undefined) {
-          defaults[input.name] = input.default;
-        } else if (input.type === "boolean") {
-          defaults[input.name] = false;
-        } else if (input.type === "select" && input.options?.length) {
-          defaults[input.name] = input.options[0];
-        } else {
-          defaults[input.name] = "";
-        }
-      }
-    }
-    setInputValues(defaults);
-  };
-
   const handleRunDirect = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -123,7 +105,7 @@ export default function Pipelines() {
     e.preventDefault();
     e.stopPropagation();
     setSelectedPipeline(pipeline);
-    initializeInputValues(pipeline);
+    setInputValues(initializeInputValues(pipeline.inputs));
     setShowRunModal(true);
   };
 

@@ -2,6 +2,7 @@
 
 import { listPipelines, getActivePipelines, isDemoPipeline } from "./engine.ts";
 import { pubsub } from "./pubsub.ts";
+import { getSystemMetrics } from "./utils/index.ts";
 
 // Track all connected WebSocket clients
 const wsClients = new Set<WebSocket>();
@@ -17,68 +18,6 @@ const SYSTEM_METRICS_INTERVAL = 5000;
 
 // System metrics broadcaster
 let systemMetricsInterval: number | null = null;
-
-// Format bytes to human readable
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
-}
-
-// Get system metrics
-async function getSystemMetrics(): Promise<{
-  memoryPercent: string;
-  memoryUsed: string;
-  memoryTotal: string;
-  cpuLoad: string;
-}> {
-  let memoryPercent = "—";
-  let memoryUsed = "—";
-  let memoryTotal = "—";
-  let cpuLoad = "—";
-
-  try {
-    const info = Deno.systemMemoryInfo();
-    const used = info.total - info.available;
-    memoryPercent = ((used / info.total) * 100).toFixed(0) + "%";
-    memoryUsed = formatBytes(used);
-    memoryTotal = formatBytes(info.total);
-  } catch {
-    // Fallback to process memory
-    try {
-      const mem = Deno.memoryUsage();
-      memoryUsed = formatBytes(mem.heapUsed);
-    } catch { /* ignore */ }
-  }
-
-  try {
-    if (Deno.build.os === "darwin") {
-      // macOS: use sysctl for load average
-      const cmd = new Deno.Command("sysctl", {
-        args: ["-n", "vm.loadavg"],
-        stdout: "piped",
-        stderr: "piped",
-      });
-      const output = await cmd.output();
-      const text = new TextDecoder().decode(output.stdout).trim();
-      // Format: "{ 1.23 1.45 1.67 }"
-      const match = text.match(/\{\s*([\d.]+)/);
-      if (match && match[1]) {
-        cpuLoad = match[1];
-      }
-    } else if (Deno.build.os === "linux") {
-      // Linux: read /proc/loadavg
-      const text = await Deno.readTextFile("/proc/loadavg");
-      const parts = text.trim().split(" ");
-      if (parts[0]) {
-        cpuLoad = parts[0];
-      }
-    }
-  } catch { /* ignore */ }
-
-  return { memoryPercent, memoryUsed, memoryTotal, cpuLoad };
-}
 
 // Broadcast system metrics to all clients
 async function broadcastSystemMetrics(): Promise<void> {

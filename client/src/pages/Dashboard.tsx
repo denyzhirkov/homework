@@ -11,6 +11,7 @@ import {
 import { getStats, getPipelines, runPipeline, type Pipeline, type PipelineInput } from "../lib/api";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import { LiveLogChip } from "../components/LiveLogChip";
+import { initializeInputValues } from "../lib/pipeline-inputs";
 
 // Track progress for running pipelines
 interface ProgressInfo {
@@ -96,25 +97,6 @@ export default function Dashboard() {
   }, []);
 
   useWebSocket(handleEvent);
-
-  // Initialize input values with defaults
-  const initializeInputValues = (pipeline: Pipeline) => {
-    const defaults: Record<string, string | boolean> = {};
-    if (pipeline.inputs) {
-      for (const input of pipeline.inputs) {
-        if (input.default !== undefined) {
-          defaults[input.name] = input.default;
-        } else if (input.type === "boolean") {
-          defaults[input.name] = false;
-        } else if (input.type === "select" && input.options?.length) {
-          defaults[input.name] = input.options[0];
-        } else {
-          defaults[input.name] = "";
-        }
-      }
-    }
-    setInputValues(defaults);
-  };
 
   const executeRun = async (id: string, inputs?: Record<string, string | boolean>) => {
     try {
@@ -235,7 +217,7 @@ export default function Dashboard() {
                               size="small" 
                               variant="contained"
                               color="primary"
-                              onClick={() => { setSelectedPipeline(p); initializeInputValues(p); setShowRunModal(true); }}
+                              onClick={() => { setSelectedPipeline(p); setInputValues(initializeInputValues(p.inputs)); setShowRunModal(true); }}
                               sx={{ minWidth: 36, px: 1 }}
                             >
                               <Settings fontSize="small" />

@@ -16,6 +16,7 @@ import { getPipeline, savePipeline, runPipeline, stopPipeline, type Pipeline, ty
 import type { editor } from "monaco-editor";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import LogViewer from "../components/LogViewer";
+import { initializeInputValues } from "../lib/pipeline-inputs";
 
 type RunEntry = {
   pipelineId: string;
@@ -186,25 +187,6 @@ export default function PipelineDetail() {
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
-  // Initialize input values with defaults when opening modal
-  const initializeInputValues = () => {
-    const defaults: Record<string, string | boolean> = {};
-    if (pipeline?.inputs) {
-      for (const input of pipeline.inputs) {
-        if (input.default !== undefined) {
-          defaults[input.name] = input.default;
-        } else if (input.type === "boolean") {
-          defaults[input.name] = false;
-        } else if (input.type === "select" && input.options?.length) {
-          defaults[input.name] = input.options[0];
-        } else {
-          defaults[input.name] = "";
-        }
-      }
-    }
-    setInputValues(defaults);
-  };
-
   const handleRun = async () => {
     if (!id || isRunning) return;
     await executeRun();
@@ -212,7 +194,7 @@ export default function PipelineDetail() {
 
   const handleOpenModal = () => {
     if (!id || isRunning) return;
-    initializeInputValues();
+    setInputValues(initializeInputValues(pipeline?.inputs));
     setShowRunModal(true);
   };
 
