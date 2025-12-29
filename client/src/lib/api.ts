@@ -12,6 +12,7 @@ export interface Pipeline {
   tags?: string[];
   schedule?: string;
   env?: string;
+  keepWorkDir?: boolean;
   inputs?: PipelineInput[];
   steps: PipelineStep[];
   isRunning?: boolean;

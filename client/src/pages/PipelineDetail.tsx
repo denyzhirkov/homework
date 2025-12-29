@@ -10,12 +10,13 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   FormControlLabel, Checkbox, Select, MenuItem, FormControl, InputLabel, Tooltip
 } from "@mui/material";
-import { Add, LocalOffer } from "@mui/icons-material";
+import { Add, LocalOffer, Code, ViewModule } from "@mui/icons-material";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { getPipeline, savePipeline, runPipeline, stopPipeline, type Pipeline, type PipelineInput, getRunHistory, getRunLog, deletePipeline, createPipeline, getVariables, type VariablesConfig, getModules, getModuleSchemas, type ModuleInfo, type ModuleSchemasMap } from "../lib/api";
 import type { editor } from "monaco-editor";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import LogViewer from "../components/LogViewer";
+import VisualPipelineEditor from "../components/VisualPipelineEditor";
 import { initializeInputValues } from "../lib/pipeline-inputs";
 import { registerPipelineHints, disposePipelineHints } from "../lib/monaco-pipeline-hints";
 
@@ -49,6 +50,9 @@ export default function PipelineDetail() {
 
   // Tab: 0 = Logs, 1 = Editor
   const [activeTab, setActiveTab] = useState(isNew ? 1 : 0);
+  
+  // Editor sub-tab: "json" | "visual"
+  const [editorMode, setEditorMode] = useState<"json" | "visual">("json");
 
   // Live Logs State
   const [liveLogs, setLiveLogs] = useState("");
@@ -140,6 +144,38 @@ export default function PipelineDetail() {
       });
     }
   }, [modules, moduleSchemas, variables, pipeline?.env]);
+
+  // Sync between JSON and Visual editors
+  const handleEditorModeChange = (newMode: "json" | "visual") => {
+    if (newMode === editorMode) return;
+    
+    if (newMode === "visual") {
+      // Switching to visual: parse JSON
+      try {
+        JSON.parse(json); // Validate JSON is parseable
+      } catch {
+        // JSON is invalid, don't switch
+        alert("Cannot switch to visual mode: JSON is invalid");
+        return;
+      }
+    }
+    // Switching to JSON: visual editor already updates json state
+    setEditorMode(newMode);
+  };
+
+  // Handle visual editor changes - update JSON string
+  const handleVisualChange = (updated: Omit<Pipeline, "id">) => {
+    setJson(JSON.stringify(updated, null, 2));
+  };
+
+  // Get current pipeline data from JSON for visual editor
+  const getPipelineFromJson = (): Omit<Pipeline, "id"> => {
+    try {
+      return JSON.parse(json);
+    } catch {
+      return { name: "New Pipeline", steps: [] };
+    }
+  };
 
   // WebSocket subscription for live updates
   const handleWSEvent = useCallback((event: WSEvent) => {
@@ -369,7 +405,7 @@ export default function PipelineDetail() {
       </Box>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2, borderBottom: '1px solid #ddd' }}>
+      <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ borderBottom: '1px solid #ddd', flexShrink: 0 }}>
         <Tab label="Logs" disabled={isNew} />
         <Tab label="Editor" icon={<Edit fontSize="small" />} iconPosition="start" />
       </Tabs>
@@ -377,7 +413,7 @@ export default function PipelineDetail() {
       {/* Tab Content */}
       {activeTab === 0 ? (
         // Logs View
-        <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+        <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1, mt: 2 }}>
           {/* History List */}
           <Box sx={{ width: 220, borderRight: '1px solid', borderColor: 'divider', overflowY: 'auto', bgcolor: 'background.paper' }}>
             <List dense disablePadding>
@@ -451,7 +487,7 @@ export default function PipelineDetail() {
         </Box>
       ) : (
         // Editor View
-        <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden', mt: 2, minHeight: 0 }}>
           {pipeline?.isDemo && (
             <Alert severity="info" sx={{ mb: 1 }}>
               This is a demo pipeline showcasing all features. It is read-only.
@@ -489,78 +525,115 @@ export default function PipelineDetail() {
             </Paper>
           )}
           
-          {/* Quick Insert Variables Panel */}
-          {!pipeline?.isDemo && (
-            <Paper variant="outlined" sx={{ p: 1, mb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
-                Quick Insert:
-              </Typography>
-              <Chip 
-                label="${prev}" 
-                size="small" 
-                variant="outlined"
-                onClick={() => insertAtCursor('${prev}')}
-                sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
-              />
-              <Chip 
-                label="${results.}" 
-                size="small" 
-                variant="outlined"
-                onClick={() => insertAtCursor('${results.}')}
-                sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
-              />
-              
-              {Object.keys(variables.global).length > 0 && (
-                <>
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mr: 0.5 }}>
-                    Global:
-                  </Typography>
-                  {Object.keys(variables.global).map(key => (
-                    <Chip
-                      key={key}
-                      label={key}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                      onClick={() => insertAtCursor(`\${env.${key}}`)}
-                      sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
-                    />
-                  ))}
-                </>
-              )}
-              
-              {pipeline?.env && variables.environments[pipeline.env] && 
-                Object.keys(variables.environments[pipeline.env]).length > 0 && (
-                <>
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mr: 0.5 }}>
-                    {pipeline.env}:
-                  </Typography>
-                  {Object.keys(variables.environments[pipeline.env]).map(key => (
-                    <Chip
-                      key={key}
-                      label={key}
-                      size="small"
-                      color="secondary"
-                      variant="outlined"
-                      onClick={() => insertAtCursor(`\${env.${key}}`)}
-                      sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
-                    />
-                  ))}
-                </>
-              )}
-            </Paper>
-          )}
-          
-          <Paper sx={{ flexGrow: 1, overflow: 'hidden', border: '1px solid #ccc' }}>
-            <Editor
-              height="100%"
-              defaultLanguage="json"
-              value={json}
-              onChange={(val) => !pipeline?.isDemo && setJson(val || "")}
-              onMount={handleEditorMount}
-              options={{ minimap: { enabled: false }, fontSize: 14, readOnly: pipeline?.isDemo }}
+          {/* Editor Mode Sub-tabs */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+            <Chip
+              icon={<Code fontSize="small" />}
+              label="JSON"
+              onClick={() => handleEditorModeChange("json")}
+              color={editorMode === "json" ? "primary" : "default"}
+              variant={editorMode === "json" ? "filled" : "outlined"}
+              size="small"
+              sx={{ cursor: 'pointer' }}
             />
-          </Paper>
+            <Chip
+              icon={<ViewModule fontSize="small" />}
+              label="Visual"
+              onClick={() => handleEditorModeChange("visual")}
+              color={editorMode === "visual" ? "primary" : "default"}
+              variant={editorMode === "visual" ? "filled" : "outlined"}
+              size="small"
+              sx={{ cursor: 'pointer' }}
+            />
+          </Box>
+          
+          {editorMode === "json" ? (
+            <>
+              {/* Quick Insert Variables Panel */}
+              {!pipeline?.isDemo && (
+                <Paper variant="outlined" sx={{ p: 1, mb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                    Quick Insert:
+                  </Typography>
+                  <Chip 
+                    label="${prev}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${prev}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${results.}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${results.}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  
+                  {Object.keys(variables.global).length > 0 && (
+                    <>
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mr: 0.5 }}>
+                        Global:
+                      </Typography>
+                      {Object.keys(variables.global).map(key => (
+                        <Chip
+                          key={key}
+                          label={key}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                          onClick={() => insertAtCursor(`\${env.${key}}`)}
+                          sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                        />
+                      ))}
+                    </>
+                  )}
+                  
+                  {pipeline?.env && variables.environments[pipeline.env] && 
+                    Object.keys(variables.environments[pipeline.env]).length > 0 && (
+                    <>
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mr: 0.5 }}>
+                        {pipeline.env}:
+                      </Typography>
+                      {Object.keys(variables.environments[pipeline.env]).map(key => (
+                        <Chip
+                          key={key}
+                          label={key}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                          onClick={() => insertAtCursor(`\${env.${key}}`)}
+                          sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                        />
+                      ))}
+                    </>
+                  )}
+                </Paper>
+              )}
+              
+              <Paper sx={{ flexGrow: 1, overflow: 'hidden', border: '1px solid #ccc' }}>
+                <Editor
+                  height="100%"
+                  defaultLanguage="json"
+                  value={json}
+                  onChange={(val) => !pipeline?.isDemo && setJson(val || "")}
+                  onMount={handleEditorMount}
+                  options={{ minimap: { enabled: false }, fontSize: 14, readOnly: pipeline?.isDemo }}
+                />
+              </Paper>
+            </>
+          ) : (
+            <Box sx={{ flexGrow: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+              <VisualPipelineEditor
+                pipeline={getPipelineFromJson()}
+                modules={modules}
+                moduleSchemas={moduleSchemas}
+                variables={variables}
+                onChange={handleVisualChange}
+                readOnly={pipeline?.isDemo}
+              />
+            </Box>
+          )}
         </Box>
       )}
 
