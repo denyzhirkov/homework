@@ -16,17 +16,10 @@ import {
   Stack,
   Tooltip,
 } from "@mui/material";
-import {
-  DragIndicator,
-  Delete,
-  ExpandMore,
-  ExpandLess,
-} from "@mui/icons-material";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { Delete, ExpandMore, ExpandLess } from "@mui/icons-material";
 import type { PipelineStep, ModuleInfo, ParamSchema, ModuleSchemasMap } from "../lib/api";
 
-interface StepCardProps {
+interface InnerStepCardProps {
   step: PipelineStep;
   index: number;
   modules: ModuleInfo[];
@@ -36,7 +29,8 @@ interface StepCardProps {
   readOnly?: boolean;
 }
 
-export default function StepCard({
+// Simplified step card without drag-n-drop for use inside ParallelGroup
+export default function InnerStepCard({
   step,
   index,
   modules,
@@ -44,23 +38,8 @@ export default function StepCard({
   onChange,
   onDelete,
   readOnly = false,
-}: StepCardProps) {
+}: InnerStepCardProps) {
   const [expanded, setExpanded] = useState(true);
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: `step-${index}` });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
 
   const schema = step.module ? moduleSchemas[step.module] : null;
   const paramSchemas = schema?.params || {};
@@ -171,9 +150,7 @@ export default function StepCard({
             multiline
             rows={3}
             label={`${key}${paramSchema.required ? " *" : ""} (JSON)`}
-            value={
-              value !== undefined ? JSON.stringify(value, null, 2) : ""
-            }
+            value={value !== undefined ? JSON.stringify(value, null, 2) : ""}
             disabled={readOnly}
             onChange={(e) => {
               try {
@@ -218,7 +195,6 @@ export default function StepCard({
     }
   };
 
-  // Split params into required and optional
   const requiredParams = Object.entries(paramSchemas).filter(
     ([, s]) => s.required
   );
@@ -228,14 +204,13 @@ export default function StepCard({
 
   return (
     <Paper
-      ref={setNodeRef}
-      style={style}
-      elevation={isDragging ? 8 : 2}
+      elevation={1}
       sx={{
-        mb: 1.5,
+        mb: 1,
         overflow: "hidden",
         border: "1px solid",
-        borderColor: isDragging ? "primary.main" : "divider",
+        borderColor: "divider",
+        bgcolor: "background.paper",
       }}
     >
       {/* Header */}
@@ -249,18 +224,10 @@ export default function StepCard({
           borderColor: "divider",
         }}
       >
-        <IconButton
-          size="small"
-          {...attributes}
-          {...listeners}
-          sx={{ cursor: "grab", mr: 0.5 }}
-        >
-          <DragIndicator fontSize="small" />
-        </IconButton>
-
         <Chip
-          label={index + 1}
+          label={String.fromCharCode(65 + index)} // A, B, C...
           size="small"
+          variant="outlined"
           sx={{ mr: 1, minWidth: 28, fontWeight: "bold" }}
         />
 
@@ -294,17 +261,25 @@ export default function StepCard({
                 size="small"
                 label="Step Name"
                 value={step.name || ""}
-                onChange={(e) => updateStep({ name: e.target.value || undefined })}
+                onChange={(e) =>
+                  updateStep({ name: e.target.value || undefined })
+                }
                 placeholder="Optional identifier"
                 disabled={readOnly}
                 sx={{ flex: 1 }}
               />
-              <FormControl size="small" sx={{ minWidth: 180 }} disabled={readOnly}>
+              <FormControl
+                size="small"
+                sx={{ minWidth: 180 }}
+                disabled={readOnly}
+              >
                 <InputLabel>Module *</InputLabel>
                 <Select
                   value={step.module || ""}
                   label="Module *"
-                  onChange={(e) => updateStep({ module: e.target.value, params: {} })}
+                  onChange={(e) =>
+                    updateStep({ module: e.target.value, params: {} })
+                  }
                 >
                   {modules.map((m) => (
                     <MenuItem key={m.id} value={m.id}>
@@ -319,7 +294,9 @@ export default function StepCard({
               size="small"
               label="Description"
               value={step.description || ""}
-              onChange={(e) => updateStep({ description: e.target.value || undefined })}
+              onChange={(e) =>
+                updateStep({ description: e.target.value || undefined })
+              }
               placeholder="What this step does"
               disabled={readOnly}
               fullWidth
@@ -366,7 +343,8 @@ export default function StepCard({
 
             {step.module && !schema && (
               <Typography variant="body2" color="text.secondary">
-                No schema available for this module. Edit parameters in JSON mode.
+                No schema available for this module. Edit parameters in JSON
+                mode.
               </Typography>
             )}
           </Stack>

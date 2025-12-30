@@ -19,8 +19,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Autocomplete,
 } from "@mui/material";
-import { Add, Delete, DragIndicator } from "@mui/icons-material";
+import { Add, Delete, DragIndicator, FlashOn } from "@mui/icons-material";
 import {
   DndContext,
   closestCenter,
@@ -45,8 +46,10 @@ import type {
   ModuleInfo,
   ModuleSchemasMap,
   VariablesConfig,
+  StepItem,
 } from "../lib/api";
 import StepCard from "./StepCard";
+import ParallelGroup from "./ParallelGroup";
 
 interface VisualPipelineEditorProps {
   pipeline: Omit<Pipeline, "id">;
@@ -150,18 +153,41 @@ function SortableInputItem({
           />
         )}
         {input.type === "select" && (
-          <TextField
+          <Autocomplete
+            multiple
+            freeSolo
             size="small"
-            label="Options (comma)"
-            value={(input.options || []).join(", ")}
-            onChange={(e) =>
+            options={[]}
+            value={input.options || []}
+            onChange={(_, newValue) =>
               onChange({
                 ...input,
-                options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                options: newValue as string[],
               })
             }
             disabled={readOnly}
-            sx={{ flex: 1, minWidth: 150 }}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index });
+                return (
+                  <Chip
+                    key={key}
+                    label={option}
+                    size="small"
+                    {...tagProps}
+                  />
+                );
+              })
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Options"
+                placeholder="Type and press Enter"
+                size="small"
+              />
+            )}
+            sx={{ flex: 1, minWidth: 200 }}
           />
         )}
       </Box>
@@ -200,13 +226,13 @@ export default function VisualPipelineEditor({
     onChange({ ...pipeline, ...updates });
   };
 
-  const updateStep = (index: number, step: PipelineStep) => {
+  const updateStepItem = (index: number, item: StepItem) => {
     const newSteps = [...pipeline.steps];
-    newSteps[index] = step;
+    newSteps[index] = item;
     updatePipeline({ steps: newSteps });
   };
 
-  const deleteStep = (index: number) => {
+  const deleteStepItem = (index: number) => {
     const newSteps = pipeline.steps.filter((_, i) => i !== index);
     updatePipeline({ steps: newSteps });
   };
@@ -221,6 +247,26 @@ export default function VisualPipelineEditor({
     setShowAddStep(false);
     setSelectedModule("");
   };
+
+  const addParallelGroup = () => {
+    // Create a parallel group with one empty http step as placeholder
+    const parallelGroup: PipelineStep[] = [
+      { module: "http", params: {} },
+      { module: "http", params: {} },
+    ];
+    updatePipeline({ steps: [...pipeline.steps, parallelGroup] });
+  };
+
+  // Helper to check if item is a parallel group
+  const isParallelGroup = (item: StepItem): item is PipelineStep[] => {
+    return Array.isArray(item);
+  };
+
+  // Count total individual steps for display
+  const totalStepCount = pipeline.steps.reduce(
+    (sum, item) => sum + (Array.isArray(item) ? item.length : 1),
+    0
+  );
 
   const handleStepDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -381,7 +427,7 @@ export default function VisualPipelineEditor({
         <Typography variant="subtitle2" sx={{ fontWeight: "bold", flexGrow: 1 }}>
           Steps
         </Typography>
-        <Chip label={pipeline.steps.length} size="small" />
+        <Chip label={totalStepCount} size="small" />
       </Box>
 
       {pipeline.steps.length > 0 ? (
@@ -394,20 +440,32 @@ export default function VisualPipelineEditor({
             items={pipeline.steps.map((_, i) => `step-${i}`)}
             strategy={verticalListSortingStrategy}
           >
-            {pipeline.steps.map((step, index) => (
+            {pipeline.steps.map((stepItem, index) => (
               <Box key={`step-wrapper-${index}`}>
-                <StepCard
-                  step={step}
-                  index={index}
-                  modules={availableModules}
-                  moduleSchemas={moduleSchemas}
-                  onChange={(updated) => updateStep(index, updated)}
-                  onDelete={() => deleteStep(index)}
-                  readOnly={readOnly}
-                />
-                {/* Add Step button after each step */}
+                {isParallelGroup(stepItem) ? (
+                  <ParallelGroup
+                    steps={stepItem}
+                    index={index}
+                    modules={availableModules}
+                    moduleSchemas={moduleSchemas}
+                    onChange={(updated) => updateStepItem(index, updated)}
+                    onDelete={() => deleteStepItem(index)}
+                    readOnly={readOnly}
+                  />
+                ) : (
+                  <StepCard
+                    step={stepItem}
+                    index={index}
+                    modules={availableModules}
+                    moduleSchemas={moduleSchemas}
+                    onChange={(updated) => updateStepItem(index, updated)}
+                    onDelete={() => deleteStepItem(index)}
+                    readOnly={readOnly}
+                  />
+                )}
+                {/* Add Step/Parallel Group buttons after each step */}
                 {!readOnly && (
-                  <Box sx={{ display: "flex", justifyContent: "center", my: 1 }}>
+                  <Box sx={{ display: "flex", justifyContent: "center", gap: 1, my: 1 }}>
                     <Button
                       size="small"
                       variant="outlined"
@@ -416,6 +474,16 @@ export default function VisualPipelineEditor({
                       sx={{ borderStyle: "dashed" }}
                     >
                       Add Step
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="warning"
+                      startIcon={<FlashOn />}
+                      onClick={addParallelGroup}
+                      sx={{ borderStyle: "dashed" }}
+                    >
+                      Add Parallel Group
                     </Button>
                   </Box>
                 )}
@@ -436,13 +504,23 @@ export default function VisualPipelineEditor({
             No steps yet. Add your first step to start building the pipeline.
           </Typography>
           {!readOnly && (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => setShowAddStep(true)}
-            >
-              Add Step
-            </Button>
+            <Stack direction="row" spacing={1} justifyContent="center">
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => setShowAddStep(true)}
+              >
+                Add Step
+              </Button>
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={<FlashOn />}
+                onClick={addParallelGroup}
+              >
+                Add Parallel Group
+              </Button>
+            </Stack>
           )}
         </Paper>
       )}

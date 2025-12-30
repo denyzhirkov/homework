@@ -16,33 +16,32 @@
         "cmd": "echo '🚀 Starting demo pipeline...' && echo 'User ID: ${inputs.userId}, Delay: ${inputs.delayMs}ms, Verbose: ${inputs.verbose}'"
       }
     },
-    {
-      "name": "api1",
-      "description": "Fetch users data (using input userId)",
-      "module": "http",
-      "params": {
-        "url": "https://jsonplaceholder.typicode.com/users/${inputs.userId}"
+    [
+      {
+        "name": "api1",
+        "description": "Fetch users data (using input userId)",
+        "module": "http",
+        "params": {
+          "url": "https://jsonplaceholder.typicode.com/users/${inputs.userId}"
+        }
       },
-      "parallel": "fetch"
-    },
-    {
-      "name": "api2",
-      "description": "Fetch posts data",
-      "module": "http",
-      "params": {
-        "url": "https://jsonplaceholder.typicode.com/posts/${inputs.userId}"
+      {
+        "name": "api2",
+        "description": "Fetch posts data",
+        "module": "http",
+        "params": {
+          "url": "https://jsonplaceholder.typicode.com/posts/${inputs.userId}"
+        }
       },
-      "parallel": "fetch"
-    },
-    {
-      "name": "api3",
-      "description": "Fetch comments data",
-      "module": "http",
-      "params": {
-        "url": "https://jsonplaceholder.typicode.com/comments/${inputs.userId}"
-      },
-      "parallel": "fetch"
-    },
+      {
+        "name": "api3",
+        "description": "Fetch comments data",
+        "module": "http",
+        "params": {
+          "url": "https://jsonplaceholder.typicode.com/comments/${inputs.userId}"
+        }
+      }
+    ],
     {
       "description": "Process fetched data using ${results.name}",
       "module": "shell",
@@ -74,4 +73,3 @@
     }
   ]
 }
-

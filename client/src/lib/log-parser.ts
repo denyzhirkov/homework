@@ -74,20 +74,20 @@ export function parseLogBlocks(content: string): LogBlock[] {
   let headerLines: string[] = [];
   let blockId = 0;
   
-  // Track parallel groups: { groupName: { count: N, startIndex: idx } }
-  const parallelGroupInfo = new Map<number, { groupName: string; count: number }>();
-  let pendingParallelGroup: { groupName: string; count: number; startBlockIndex: number } | null = null;
+  // Track parallel groups: { startIndex: { count: N } }
+  const parallelGroupInfo = new Map<number, { count: number }>();
+  let pendingParallelGroup: { count: number; startBlockIndex: number } | null = null;
+  let parallelGroupCounter = 0;
 
   // First pass: create blocks
   for (const line of lines) {
-    // Check for parallel group marker: "Running N steps in parallel (group: ...)"
-    const parallelMatch = line.match(/Running (\d+) steps in parallel \(group: (.+?)\)/);
+    // Check for parallel group marker: "Running N steps in parallel"
+    const parallelMatch = line.match(/Running (\d+) steps in parallel/);
     if (parallelMatch) {
       const count = parseInt(parallelMatch[1], 10);
-      const groupName = parallelMatch[2];
+      parallelGroupCounter++;
       // Mark where parallel group starts (next block index)
       pendingParallelGroup = { 
-        groupName, 
         count, 
         startBlockIndex: rawBlocks.length + (currentBlock ? 1 : 0)
       };
@@ -119,12 +119,11 @@ export function parseLogBlocks(content: string): LogBlock[] {
         const currentIndex = rawBlocks.length;
         if (currentIndex >= pendingParallelGroup.startBlockIndex && 
             currentIndex < pendingParallelGroup.startBlockIndex + pendingParallelGroup.count) {
-          parallelGroup = pendingParallelGroup.groupName;
+          parallelGroup = `parallel-${parallelGroupCounter}`;
         }
         // Store info for later grouping
         if (currentIndex === pendingParallelGroup.startBlockIndex) {
           parallelGroupInfo.set(currentIndex, {
-            groupName: pendingParallelGroup.groupName,
             count: pendingParallelGroup.count
           });
         }
@@ -191,9 +190,11 @@ export function parseLogBlocks(content: string): LogBlock[] {
   // Third pass: group parallel blocks together
   const finalBlocks: LogBlock[] = [];
   let i = 0;
+  let parallelIndex = 0;
   while (i < rawBlocks.length) {
     const groupInfo = parallelGroupInfo.get(i);
     if (groupInfo && i + groupInfo.count <= rawBlocks.length) {
+      parallelIndex++;
       // Create a parallel group container
       const children = rawBlocks.slice(i, i + groupInfo.count);
       const allSuccess = children.every(b => b.status === "success");
@@ -202,7 +203,7 @@ export function parseLogBlocks(content: string): LogBlock[] {
       
       finalBlocks.push({
         id: `parallel-${blockId++}`,
-        title: `Parallel: ${groupInfo.groupName}`,
+        title: `Parallel Group ${parallelIndex} (${groupInfo.count} steps)`,
         lines: [],
         status: hasError ? "error" : allSuccess ? "success" : "running",
         duration: maxDuration > 0 ? maxDuration : undefined,

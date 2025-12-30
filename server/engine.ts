@@ -12,7 +12,7 @@ import { interpolate } from "./interpolation.ts";
 import { pubsub } from "./pubsub.ts";
 import { finishRun } from "./db.ts";
 import { sanitizeLogMessage, validatePipelineId } from "./utils/index.ts";
-import type { Pipeline, PipelineStep, PipelineContext, RunningPipeline } from "./types/index.ts";
+import type { Pipeline, PipelineStep, PipelineContext, RunningPipeline, StepItem } from "./types/index.ts";
 
 // Re-export from repository and sandbox for backward compatibility
 export { loadPipeline, savePipeline, listPipelines, deletePipeline, isDemoPipeline } from "./pipeline-repository.ts";
@@ -186,7 +186,7 @@ export async function runPipeline(id: string, runtimeInputs?: Record<string, str
   };
   runningPipelines.set(id, runningInfo);
 
-  const totalSteps = pipeline.steps.length;
+  const totalSteps = countTotalSteps(pipeline.steps);
   pubsub.publish({ type: "start", pipelineId: id, payload: { runId, totalSteps } });
 
   const log = (msg: string) => {
@@ -224,8 +224,8 @@ export async function runPipeline(id: string, runtimeInputs?: Record<string, str
 
   sanitizedLog(`[Sandbox] Created isolated working directory: ${sandboxPath}`);
 
-  // Group consecutive steps with same parallel value
-  const stepGroups = groupSteps(pipeline.steps);
+  // Normalize steps: single steps become [step], arrays stay as parallel groups
+  const stepGroups = normalizeSteps(pipeline.steps);
 
   // Execute step function
   const executeStep = async (step: PipelineStep, stepIndex: number) => {
@@ -270,7 +270,7 @@ export async function runPipeline(id: string, runtimeInputs?: Record<string, str
           if (step.name) ctx.results[step.name] = result;
           currentStepIndex++;
         } else {
-          log(`Running ${group.length} steps in parallel (group: ${group[0].parallel})`);
+          log(`Running ${group.length} steps in parallel`);
           const startIndex = currentStepIndex;
           const results = await Promise.all(
             group.map((step, i) => executeStep(step, startIndex + i))
@@ -316,17 +316,12 @@ export async function runPipeline(id: string, runtimeInputs?: Record<string, str
 
 // --- Helper functions ---
 
-function groupSteps(steps: PipelineStep[]): PipelineStep[][] {
-  const groups: PipelineStep[][] = [];
+// Normalize steps to arrays: single steps become [step], arrays stay as-is
+function normalizeSteps(steps: StepItem[]): PipelineStep[][] {
+  return steps.map(item => Array.isArray(item) ? item : [item]);
+}
 
-  for (const step of steps) {
-    const lastGroup = groups[groups.length - 1];
-    if (lastGroup && step.parallel && lastGroup[0].parallel === step.parallel) {
-      lastGroup.push(step);
-    } else {
-      groups.push([step]);
-    }
-  }
-
-  return groups;
+// Count total individual steps (for progress tracking)
+function countTotalSteps(steps: StepItem[]): number {
+  return steps.reduce((sum, item) => sum + (Array.isArray(item) ? item.length : 1), 0);
 }

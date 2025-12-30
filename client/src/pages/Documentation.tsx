@@ -234,8 +234,8 @@ export default function Documentation() {
           Steps & Parallel Execution
         </Typography>
         <Typography variant="body2" paragraph>
-          Each step specifies a module to run and its parameters. Steps execute sequentially by default, 
-          but can be grouped for parallel execution using the <code>parallel</code> field.
+          Each step specifies a module to run and its parameters. Steps execute sequentially by default.
+          To run steps in parallel, wrap them in a nested array.
         </Typography>
         <CodeBlock>{`{
   "steps": [
@@ -245,23 +245,23 @@ export default function Documentation() {
       "module": "shell",
       "params": { "cmd": "echo 'Hello'" }
     },
-    {
-      "name": "api1",
-      "module": "http",
-      "params": { "url": "https://api.example.com/users" },
-      "parallel": "fetch"
-    },
-    {
-      "name": "api2",
-      "module": "http", 
-      "params": { "url": "https://api.example.com/posts" },
-      "parallel": "fetch"
-    }
+    [
+      {
+        "name": "api1",
+        "module": "http",
+        "params": { "url": "https://api.example.com/users" }
+      },
+      {
+        "name": "api2",
+        "module": "http", 
+        "params": { "url": "https://api.example.com/posts" }
+      }
+    ]
   ]
 }`}</CodeBlock>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          Steps with the same <code>parallel</code> value execute simultaneously. The pipeline waits for all 
-          parallel steps to complete before continuing.
+          Steps inside a nested array execute simultaneously. The pipeline waits for all 
+          parallel steps to complete before continuing to the next step.
         </Typography>
 
         <Typography id="pipeline-inputs" variant="h6" sx={{ mt: 3, mb: 1, scrollMarginTop: 80 }}>

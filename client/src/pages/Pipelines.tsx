@@ -7,7 +7,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, FormControlLabel, Checkbox, Select, MenuItem, FormControl, InputLabel, TextField, Tooltip
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { getPipelines, type Pipeline, type PipelineInput, runPipeline, stopPipeline } from "../lib/api";
+import { getPipelines, type Pipeline, type PipelineInput, runPipeline, stopPipeline, countSteps } from "../lib/api";
 import { useWebSocket, type WSEvent } from "../lib/useWebSocket";
 import { LiveLogChip } from "../components/LiveLogChip";
 import TagFilter, { extractUniqueTags, filterByTags, groupByTags } from "../components/TagFilter";
@@ -195,7 +195,7 @@ export default function Pipelines() {
                   {p.name || p.id}
                 </Typography>
                 <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap mb={1}>
-                  <Chip label={`${p.steps?.length || 0} steps`} size="small" />
+                  <Chip label={`${p.steps ? countSteps(p.steps) : 0} steps`} size="small" />
                   {p.isDemo && (
                     <Chip label="Demo" size="small" color="info" />
                   )}

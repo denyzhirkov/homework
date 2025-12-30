@@ -101,7 +101,6 @@ Pipelines are JSON files in the `pipelines/` directory:
 | `description` | string | Step description |
 | `module` | string | Module to execute: `shell`, `docker`, `http`, `git`, `fs`, `delay` |
 | `params` | object | Module-specific parameters |
-| `parallel` | string | Group name for parallel execution |
 
 ### Pipeline Inputs
 
@@ -407,18 +406,23 @@ The editor also provides Quick Insert buttons for common variables like `${prev}
 
 ## Parallel Execution
 
-Steps with the same `parallel` value execute simultaneously:
+To run steps in parallel, wrap them in a nested array:
 
 ```json
 {
   "steps": [
-    { "module": "http", "params": { "url": "..." }, "parallel": "fetch" },
-    { "module": "http", "params": { "url": "..." }, "parallel": "fetch" },
-    { "module": "http", "params": { "url": "..." }, "parallel": "fetch" },
+    { "module": "shell", "params": { "cmd": "echo 'Starting...'" } },
+    [
+      { "module": "http", "params": { "url": "https://api.example.com/users" } },
+      { "module": "http", "params": { "url": "https://api.example.com/posts" } },
+      { "module": "http", "params": { "url": "https://api.example.com/comments" } }
+    ],
     { "module": "shell", "params": { "cmd": "echo 'All fetched!'" } }
   ]
 }
 ```
+
+Steps inside a nested array execute simultaneously. The pipeline waits for all parallel steps to complete before continuing to the next step.
 
 ## Docker Deployment
 

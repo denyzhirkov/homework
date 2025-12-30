@@ -95,7 +95,8 @@ export function registerPipelineHints(monaco: Monaco, context: HintsContext): vo
         };
       }
 
-      // 4. Suggest step fields (name, description, module, params, parallel)
+      // 4. Suggest step fields (name, description, module, params)
+      // Note: parallel execution is now done via nested arrays, not a "parallel" field
       if (isInsideStepObject(textUntilPosition) && !isInsideParamsObject(textUntilPosition)) {
         const existingFields = getExistingStepFields(textUntilPosition);
         const word = model.getWordUntilPosition(position);
@@ -105,7 +106,6 @@ export function registerPipelineHints(monaco: Monaco, context: HintsContext): vo
           { key: "description", desc: "Human-readable step description", required: false },
           { key: "module", desc: "Module to execute (required)", required: true },
           { key: "params", desc: "Module parameters", required: false },
-          { key: "parallel", desc: "Parallel group name for concurrent execution", required: false },
         ];
 
         return {

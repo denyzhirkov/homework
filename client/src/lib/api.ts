@@ -14,7 +14,7 @@ export interface Pipeline {
   env?: string;
   keepWorkDir?: boolean;
   inputs?: PipelineInput[];
-  steps: PipelineStep[];
+  steps: StepItem[]; // Steps can include nested arrays for parallel execution
   isRunning?: boolean;
   isDemo?: boolean;
 }
@@ -24,7 +24,14 @@ export interface PipelineStep {
   description?: string;
   module: string;
   params?: Record<string, unknown>;
-  parallel?: string;
+}
+
+// A step item can be a single step or an array of parallel steps
+export type StepItem = PipelineStep | PipelineStep[];
+
+// Helper to count total individual steps (including those in parallel groups)
+export function countSteps(steps: StepItem[]): number {
+  return steps.reduce((sum, item) => sum + (Array.isArray(item) ? item.length : 1), 0);
 }
 
 export interface PipelineInput {

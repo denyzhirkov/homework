@@ -11,7 +11,7 @@ export interface Pipeline {
   env?: string; // Environment name to use
   keepWorkDir?: boolean; // Keep sandbox directory after run (for debugging)
   inputs?: PipelineInput[]; // Input parameters for parameterized runs
-  steps: PipelineStep[];
+  steps: StepItem[]; // Steps can include nested arrays for parallel execution
 }
 
 export interface PipelineStep {
@@ -19,8 +19,10 @@ export interface PipelineStep {
   description?: string;
   module: string;
   params?: Record<string, unknown>;
-  parallel?: string; // Group name for parallel execution
 }
+
+// A step item can be a single step or an array of parallel steps
+export type StepItem = PipelineStep | PipelineStep[];
 
 // --- Pipeline Input Types ---
 
