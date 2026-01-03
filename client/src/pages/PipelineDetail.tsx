@@ -649,6 +649,83 @@ export default function PipelineDetail() {
                     onClick={() => insertAtCursor('${results.}')}
                     sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
                   />
+                  <Chip 
+                    label="${pipelineId}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${pipelineId}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${PIPELINE_NAME}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${PIPELINE_NAME}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${BUILD_ID}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${BUILD_ID}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${UNIXTIMESTAMP}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${UNIXTIMESTAMP}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${WORK_DIR}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${WORK_DIR}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${DATE}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${DATE}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${TIME}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${TIME}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${DATETIME}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${DATETIME}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${YEAR}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${YEAR}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${MONTH}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${MONTH}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <Chip 
+                    label="${DAY}" 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => insertAtCursor('${DAY}')}
+                    sx={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}
+                  />
                   
                   {Object.keys(variables.global).length > 0 && (
                     <>

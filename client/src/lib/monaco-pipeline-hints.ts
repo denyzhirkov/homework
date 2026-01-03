@@ -335,6 +335,116 @@ function buildInterpolationSuggestions(
     });
   }
 
+  if (!prefix || "BUILD_ID".startsWith(prefix)) {
+    suggestions.push({
+      label: "BUILD_ID",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "BUILD_ID",
+      detail: "Unique build ID",
+      documentation: "Unique build ID for this pipeline run (timestamp-based)",
+      sortText: "0BUILD_ID",
+    });
+  }
+
+  if (!prefix || "UNIXTIMESTAMP".startsWith(prefix)) {
+    suggestions.push({
+      label: "UNIXTIMESTAMP",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "UNIXTIMESTAMP",
+      detail: "Unix timestamp",
+      documentation: "Unix timestamp of pipeline start time",
+      sortText: "0UNIXTIMESTAMP",
+    });
+  }
+
+  if (!prefix || "WORK_DIR".startsWith(prefix)) {
+    suggestions.push({
+      label: "WORK_DIR",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "WORK_DIR",
+      detail: "Working directory",
+      documentation: "Working directory (sandbox path) for the pipeline",
+      sortText: "0WORK_DIR",
+    });
+  }
+
+  if (!prefix || "DATE".startsWith(prefix)) {
+    suggestions.push({
+      label: "DATE",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "DATE",
+      detail: "Date (YYYY-MM-DD)",
+      documentation: "Date in YYYY-MM-DD format",
+      sortText: "0DATE",
+    });
+  }
+
+  if (!prefix || "TIME".startsWith(prefix)) {
+    suggestions.push({
+      label: "TIME",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "TIME",
+      detail: "Time (HH:MM:SS)",
+      documentation: "Time in HH:MM:SS format",
+      sortText: "0TIME",
+    });
+  }
+
+  if (!prefix || "DATETIME".startsWith(prefix)) {
+    suggestions.push({
+      label: "DATETIME",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "DATETIME",
+      detail: "Date and time (ISO)",
+      documentation: "Date and time in ISO format (YYYY-MM-DDTHH:MM:SS)",
+      sortText: "0DATETIME",
+    });
+  }
+
+  if (!prefix || "YEAR".startsWith(prefix)) {
+    suggestions.push({
+      label: "YEAR",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "YEAR",
+      detail: "Year (YYYY)",
+      documentation: "Year component (YYYY)",
+      sortText: "0YEAR",
+    });
+  }
+
+  if (!prefix || "MONTH".startsWith(prefix)) {
+    suggestions.push({
+      label: "MONTH",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "MONTH",
+      detail: "Month (MM)",
+      documentation: "Month component (MM, 01-12)",
+      sortText: "0MONTH",
+    });
+  }
+
+  if (!prefix || "DAY".startsWith(prefix)) {
+    suggestions.push({
+      label: "DAY",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "DAY",
+      detail: "Day (DD)",
+      documentation: "Day component (DD, 01-31)",
+      sortText: "0DAY",
+    });
+  }
+
+  if (!prefix || "PIPELINE_NAME".startsWith(prefix)) {
+    suggestions.push({
+      label: "PIPELINE_NAME",
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: "PIPELINE_NAME",
+      detail: "Pipeline name",
+      documentation: "Pipeline display name",
+      sortText: "0PIPELINE_NAME",
+    });
+  }
+
   // Environment variables
   if (!prefix || "env.".startsWith(prefix) || prefix.startsWith("env.")) {
     suggestions.push({

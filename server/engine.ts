@@ -12,7 +12,7 @@ import { interpolate } from "./interpolation.ts";
 import { pubsub } from "./pubsub.ts";
 import { finishRun } from "./db.ts";
 import { sanitizeLogMessage, validatePipelineId } from "./utils/index.ts";
-import type { Pipeline, PipelineStep, PipelineContext, RunningPipeline, StepItem } from "./types/index.ts";
+import type { PipelineStep, PipelineContext, RunningPipeline, StepItem } from "./types/index.ts";
 
 // Re-export from repository and sandbox for backward compatibility
 export { loadPipeline, savePipeline, listPipelines, deletePipeline, isDemoPipeline } from "./pipeline-repository.ts";
@@ -67,6 +67,33 @@ export async function stopPipeline(id: string): Promise<boolean> {
 
 // --- Pipeline context creation ---
 
+// Helper function to format date components from timestamp
+function formatDateComponents(timestamp: number): {
+  DATE: string;
+  TIME: string;
+  DATETIME: string;
+  YEAR: string;
+  MONTH: string;
+  DAY: string;
+} {
+  const date = new Date(timestamp);
+  const year = date.getFullYear().toString();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  const seconds = date.getSeconds().toString().padStart(2, "0");
+
+  return {
+    DATE: `${year}-${month}-${day}`,
+    TIME: `${hours}:${minutes}:${seconds}`,
+    DATETIME: `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`,
+    YEAR: year,
+    MONTH: month,
+    DAY: day,
+  };
+}
+
 function createPipelineContext(
   sandboxPath: string,
   mergedEnv: Record<string, string>,
@@ -74,11 +101,16 @@ function createPipelineContext(
   startTime: number,
   sanitizedLog: (msg: string) => void,
   signal: AbortSignal,
-  inputs: Record<string, string | boolean> = {}
+  inputs: Record<string, string | boolean> = {},
+  runId: string,
+  pipelineName: string
 ): PipelineContext {
   // Internal mutable storage
   const resultsStorage: Record<string, unknown> = Object.create(null);
   let prevResult: unknown = null;
+
+  // Format date components
+  const dateComponents = formatDateComponents(startTime);
 
   // Frozen immutable fields
   const frozenFields = Object.freeze({
@@ -89,6 +121,16 @@ function createPipelineContext(
     startTime,
     log: sanitizedLog,
     signal,
+    BUILD_ID: runId,
+    UNIXTIMESTAMP: startTime,
+    WORK_DIR: sandboxPath,
+    DATE: dateComponents.DATE,
+    TIME: dateComponents.TIME,
+    DATETIME: dateComponents.DATETIME,
+    YEAR: dateComponents.YEAR,
+    MONTH: dateComponents.MONTH,
+    DAY: dateComponents.DAY,
+    PIPELINE_NAME: pipelineName,
   });
 
   // Create secure context with controlled mutability
@@ -100,6 +142,16 @@ function createPipelineContext(
     startTime: { value: frozenFields.startTime, writable: false, enumerable: true },
     log: { value: frozenFields.log, writable: false, enumerable: true },
     signal: { value: frozenFields.signal, writable: false, enumerable: true },
+    BUILD_ID: { value: frozenFields.BUILD_ID, writable: false, enumerable: true },
+    UNIXTIMESTAMP: { value: frozenFields.UNIXTIMESTAMP, writable: false, enumerable: true },
+    WORK_DIR: { value: frozenFields.WORK_DIR, writable: false, enumerable: true },
+    DATE: { value: frozenFields.DATE, writable: false, enumerable: true },
+    TIME: { value: frozenFields.TIME, writable: false, enumerable: true },
+    DATETIME: { value: frozenFields.DATETIME, writable: false, enumerable: true },
+    YEAR: { value: frozenFields.YEAR, writable: false, enumerable: true },
+    MONTH: { value: frozenFields.MONTH, writable: false, enumerable: true },
+    DAY: { value: frozenFields.DAY, writable: false, enumerable: true },
+    PIPELINE_NAME: { value: frozenFields.PIPELINE_NAME, writable: false, enumerable: true },
 
     // Controlled mutable: prev (getter/setter with deep freeze on set)
     prev: {
@@ -220,7 +272,7 @@ export async function runPipeline(id: string, runtimeInputs?: Record<string, str
 
   // Create context
   const mergedEnv = await getMergedEnv(resolvedPipelineEnv);
-  const ctx = createPipelineContext(sandboxPath, mergedEnv, id, startTime, sanitizedLog, controller.signal, inputs);
+  const ctx = createPipelineContext(sandboxPath, mergedEnv, id, startTime, sanitizedLog, controller.signal, inputs, runId, pipeline.name);
 
   sanitizedLog(`[Sandbox] Created isolated working directory: ${sandboxPath}`);
 

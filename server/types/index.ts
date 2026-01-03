@@ -49,6 +49,16 @@ export interface PipelineContext {
   readonly log: (msg: string) => void;
   readonly signal: AbortSignal;
   readonly stepIndex?: number;
+  readonly BUILD_ID: string; // Unique build ID for this pipeline run
+  readonly UNIXTIMESTAMP: number; // Unix timestamp of pipeline start time
+  readonly WORK_DIR: string; // Working directory (same as workDir, for interpolation)
+  readonly DATE: string; // Date in YYYY-MM-DD format
+  readonly TIME: string; // Time in HH:MM:SS format
+  readonly DATETIME: string; // Date and time in ISO format (YYYY-MM-DDTHH:MM:SS)
+  readonly YEAR: string; // Year (YYYY)
+  readonly MONTH: string; // Month (MM, 01-12)
+  readonly DAY: string; // Day (DD, 01-31)
+  readonly PIPELINE_NAME: string; // Pipeline display name
 }
 
 // --- Module Types ---

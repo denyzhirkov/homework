@@ -159,6 +159,16 @@ Access data from previous steps and inputs in parameters:
 - `${env.VAR_NAME}` — Environment variable
 - `${inputs.inputName}` — Runtime input value
 - `${pipelineId}` — Current pipeline ID
+- `${BUILD_ID}` — Unique build ID for this pipeline run (timestamp-based)
+- `${UNIXTIMESTAMP}` — Unix timestamp of pipeline start time
+- `${WORK_DIR}` — Working directory (sandbox path)
+- `${DATE}` — Date in YYYY-MM-DD format
+- `${TIME}` — Time in HH:MM:SS format
+- `${DATETIME}` — Date and time in ISO format (YYYY-MM-DDTHH:MM:SS)
+- `${YEAR}` — Year (YYYY)
+- `${MONTH}` — Month (MM, 01-12)
+- `${DAY}` — Day (DD, 01-31)
+- `${PIPELINE_NAME}` — Pipeline display name
 
 ## Variables
 

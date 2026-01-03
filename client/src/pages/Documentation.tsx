@@ -378,10 +378,29 @@ export default function Documentation() {
 { "url": "https://api.example.com/users/\${inputs.userId}" }
 
 // Access pipeline metadata
-{ "cmd": "echo 'Pipeline: \${pipelineId}'" }`}</CodeBlock>
+{ "cmd": "echo 'Pipeline: \${pipelineId}'" }
+{ "cmd": "echo 'Pipeline name: \${PIPELINE_NAME}'" }
+
+// Access build information
+{ "cmd": "echo 'Build ID: \${BUILD_ID}'" }
+{ "cmd": "echo 'Started at: \${UNIXTIMESTAMP}'" }
+
+// Access date and time
+{ "cmd": "echo 'Date: \${DATE}'" }
+{ "cmd": "echo 'Time: \${TIME}'" }
+{ "cmd": "echo 'DateTime: \${DATETIME}'" }
+
+// Access date components
+{ "output": "logs/\${YEAR}/\${MONTH}/build-\${DAY}.log" }
+
+// Access working directory
+{ "output": "\${WORK_DIR}/artifacts/\${BUILD_ID}.zip" }`}</CodeBlock>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
           Available interpolation variables: <code>{"${prev}"}</code>, <code>{"${results.stepName}"}</code>, 
-          <code>{"${env.VAR_NAME}"}</code>, <code>{"${inputs.inputName}"}</code>, <code>{"${pipelineId}"}</code>.
+          <code>{"${env.VAR_NAME}"}</code>, <code>{"${inputs.inputName}"}</code>, <code>{"${pipelineId}"}</code>,
+          <code>{"${BUILD_ID}"}</code>, <code>{"${UNIXTIMESTAMP}"}</code>, <code>{"${WORK_DIR}"}</code>,
+          <code>{"${DATE}"}</code>, <code>{"${TIME}"}</code>, <code>{"${DATETIME}"}</code>, <code>{"${YEAR}"}</code>,
+          <code>{"${MONTH}"}</code>, <code>{"${DAY}"}</code>, <code>{"${PIPELINE_NAME}"}</code>.
         </Typography>
 
         <Divider sx={{ my: 4 }} />
