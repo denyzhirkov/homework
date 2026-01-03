@@ -29,7 +29,8 @@ export const schema = {
     content: {
       type: "string",
       required: false,
-      description: "Content to write (required for write operation)"
+      description: "Content to write (required for write operation)",
+      visibleWhen: { param: "op", equals: "write" }
     }
   }
 };
@@ -38,7 +39,7 @@ import { ensureDir } from "@std/fs";
 import { dirname } from "@std/path";
 import type { PipelineContext } from "../server/types/index.ts";
 
-export async function run(ctx: PipelineContext, params: { op: "read" | "write"; path: string; content?: string }): Promise<string | { success: true }> {
+export async function run(_ctx: PipelineContext, params: { op: "read" | "write"; path: string; content?: string }): Promise<string | { success: true }> {
   if (params.op === "read") {
     return await Deno.readTextFile(params.path);
   } else if (params.op === "write") {

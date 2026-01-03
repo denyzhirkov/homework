@@ -47,6 +47,32 @@ export default function InnerStepCard({
   const schema = step.module ? moduleSchemas[step.module] : null;
   const paramSchemas = schema?.params || {};
 
+  // Check if a parameter should be visible based on visibleWhen condition
+  const isParamVisible = (paramSchema: ParamSchema): boolean => {
+    if (!paramSchema.visibleWhen) return true;
+    
+    const condition = paramSchema.visibleWhen;
+    const triggerValue = step.params?.[condition.param];
+    
+    // Handle equals condition
+    if (condition.equals !== undefined) {
+      if (Array.isArray(condition.equals)) {
+        return condition.equals.includes(triggerValue as string);
+      }
+      return triggerValue === condition.equals;
+    }
+    
+    // Handle notEquals condition
+    if (condition.notEquals !== undefined) {
+      if (Array.isArray(condition.notEquals)) {
+        return !condition.notEquals.includes(triggerValue as string);
+      }
+      return triggerValue !== condition.notEquals;
+    }
+    
+    return true;
+  };
+
   const updateStep = (updates: Partial<PipelineStep>) => {
     onChange({ ...step, ...updates });
   };
@@ -198,11 +224,12 @@ export default function InnerStepCard({
     }
   };
 
+  // Split params into required and optional, filtering by visibility
   const requiredParams = Object.entries(paramSchemas).filter(
-    ([, s]) => s.required
+    ([, s]) => s.required && isParamVisible(s)
   );
   const optionalParams = Object.entries(paramSchemas).filter(
-    ([, s]) => !s.required
+    ([, s]) => !s.required && isParamVisible(s)
   );
 
   return (

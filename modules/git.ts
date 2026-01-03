@@ -27,7 +27,8 @@ export const schema = {
     repo: {
       type: "string",
       required: false,
-      description: "Repository URL (required for clone)"
+      description: "Repository URL (required for clone)",
+      visibleWhen: { param: "op", equals: "clone" }
     },
     dir: {
       type: "string",

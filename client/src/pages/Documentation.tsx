@@ -1,5 +1,5 @@
 import { Box, Typography, Paper, List, ListItemButton, ListItemText, Divider, Chip } from "@mui/material";
-import { Terminal, Http, FolderCopy, Timer, Notifications, CloudQueue, Archive, Code } from "@mui/icons-material";
+import { Terminal, Http, FolderCopy, Timer, Notifications, CloudQueue, Archive, Code, Lan, Storage, DataObject } from "@mui/icons-material";
 
 // Code block component
 function CodeBlock({ children }: { children: string }) {
@@ -119,6 +119,9 @@ const navItems = [
   { id: 'mod-notify', label: 'notify', indent: 1 },
   { id: 'mod-docker', label: 'docker', indent: 1 },
   { id: 'mod-archive', label: 'archive', indent: 1 },
+  { id: 'mod-ssh', label: 'ssh', indent: 1 },
+  { id: 'mod-s3', label: 's3', indent: 1 },
+  { id: 'mod-json', label: 'json', indent: 1 },
   { id: 'variables', label: 'Variables', indent: 0 },
   { id: 'editor', label: 'Smart Editor', indent: 0 },
 ];
@@ -386,7 +389,7 @@ export default function Documentation() {
         {/* Modules */}
         <SectionHeader id="modules" title="Modules" subtitle="Built-in functionality" />
         <Typography variant="body2" paragraph>
-          Modules are TypeScript functions that perform specific actions. HomeworkCI includes 8 built-in modules. 
+          Modules are TypeScript functions that perform specific actions. HomeworkCI includes 11 built-in modules. 
           You can also create custom modules by adding <code>.ts</code> files to the <code>modules/</code> directory.
         </Typography>
 
@@ -492,16 +495,22 @@ export default function Documentation() {
           id="mod-notify"
           icon={<Notifications fontSize="small" />}
           title="notify"
-          description="Sends notifications to messaging platforms. Currently supports Telegram."
+          description="Sends notifications to messaging platforms. Supports Telegram and Slack."
           params={[
-            { name: 'type', type: '"telegram"', required: true, description: 'Notification platform' },
-            { name: 'token', type: 'string', required: true, description: 'Bot API token' },
-            { name: 'chatId', type: 'string', required: true, description: 'Chat or channel ID' },
+            { name: 'type', type: '"telegram" | "slack"', required: true, description: 'Notification platform' },
             { name: 'message', type: 'string', required: true, description: 'Message text' },
-            { name: 'parseMode', type: '"HTML" | "Markdown"', description: 'Message formatting mode' }
+            { name: 'token', type: 'string', description: 'Telegram: Bot API token' },
+            { name: 'chatId', type: 'string', description: 'Telegram: Chat or channel ID' },
+            { name: 'parseMode', type: '"HTML" | "Markdown"', description: 'Telegram: Message formatting mode' },
+            { name: 'webhook', type: 'string', description: 'Slack: Incoming Webhook URL' },
+            { name: 'channel', type: 'string', description: 'Slack: Channel override (e.g., #deploys)' },
+            { name: 'username', type: 'string', description: 'Slack: Username override' },
+            { name: 'iconEmoji', type: 'string', description: 'Slack: Icon emoji (e.g., :rocket:)' },
+            { name: 'attachments', type: 'array', description: 'Slack: Rich message attachments' }
           ]}
-          returns='{ "success": true, "messageId": 12345 }'
-          example={`{
+          returns='Telegram: { "success": true, "messageId": 12345 }. Slack: { "success": true }'
+          example={`// Telegram notification
+{
   "module": "notify",
   "params": {
     "type": "telegram",
@@ -509,6 +518,18 @@ export default function Documentation() {
     "chatId": "\${env.TG_CHAT_ID}",
     "message": "<b>Build completed!</b>\\nStatus: ✅",
     "parseMode": "HTML"
+  }
+}
+
+// Slack notification
+{
+  "module": "notify",
+  "params": {
+    "type": "slack",
+    "webhook": "\${env.SLACK_WEBHOOK_URL}",
+    "message": "✅ Deploy successful!",
+    "channel": "#deploys",
+    "iconEmoji": ":rocket:"
   }
 }`}
         />
@@ -569,6 +590,168 @@ export default function Documentation() {
     "op": "unzip",
     "source": "./build.zip",
     "output": "./extracted"
+  }
+}`}
+        />
+
+        <ModuleDoc
+          id="mod-ssh"
+          icon={<Lan fontSize="small" />}
+          title="ssh"
+          description="Execute remote commands or copy files via SSH/SCP. Essential for deploying to remote servers."
+          params={[
+            { name: 'op', type: '"exec" | "scp"', required: true, description: 'Operation: exec (command) or scp (copy files)' },
+            { name: 'host', type: 'string', required: true, description: 'Remote host address' },
+            { name: 'user', type: 'string', required: true, description: 'SSH username' },
+            { name: 'privateKey', type: 'string', required: true, description: 'SSH private key content' },
+            { name: 'port', type: 'number', description: 'SSH port (default: 22)' },
+            { name: 'cmd', type: 'string', description: 'Command to execute (for exec)' },
+            { name: 'source', type: 'string', description: 'Local path to copy (for scp)' },
+            { name: 'destination', type: 'string', description: 'Remote path (for scp)' },
+            { name: 'recursive', type: 'boolean', description: 'Recursive copy for directories (default: true)' },
+            { name: 'timeout', type: 'number', description: 'Timeout in ms (default: 60000)' }
+          ]}
+          returns='exec: { "code": 0, "stdout": "...", "stderr": "..." }. scp: { "success": true, "files": 5 }'
+          example={`// Execute remote command
+{
+  "module": "ssh",
+  "params": {
+    "op": "exec",
+    "host": "\${env.DEPLOY_HOST}",
+    "user": "deploy",
+    "privateKey": "\${env.SSH_PRIVATE_KEY}",
+    "cmd": "cd /app && git pull && docker compose restart"
+  }
+}
+
+// Copy files to remote server
+{
+  "module": "ssh",
+  "params": {
+    "op": "scp",
+    "host": "\${env.DEPLOY_HOST}",
+    "user": "deploy",
+    "privateKey": "\${env.SSH_PRIVATE_KEY}",
+    "source": "./dist/",
+    "destination": "/var/www/app/"
+  }
+}`}
+        />
+
+        <ModuleDoc
+          id="mod-s3"
+          icon={<Storage fontSize="small" />}
+          title="s3"
+          description="S3-compatible storage operations. Works with AWS S3, MinIO, DigitalOcean Spaces, and other compatible services."
+          params={[
+            { name: 'op', type: '"upload" | "download" | "list" | "delete"', required: true, description: 'Operation type' },
+            { name: 'bucket', type: 'string', required: true, description: 'S3 bucket name' },
+            { name: 'endpoint', type: 'string', required: true, description: 'S3-compatible endpoint URL' },
+            { name: 'accessKey', type: 'string', required: true, description: 'Access key ID' },
+            { name: 'secretKey', type: 'string', required: true, description: 'Secret access key' },
+            { name: 'key', type: 'string', description: 'Object key (path in bucket)' },
+            { name: 'source', type: 'string', description: 'Local file path for upload' },
+            { name: 'output', type: 'string', description: 'Local path for download' },
+            { name: 'prefix', type: 'string', description: 'Prefix filter for list operation' },
+            { name: 'region', type: 'string', description: 'AWS region (default: us-east-1)' },
+            { name: 'contentType', type: 'string', description: 'Content-Type for upload (auto-detected)' },
+            { name: 'acl', type: 'string', description: 'ACL: private, public-read, etc.' }
+          ]}
+          returns='upload/download: { "success": true, "key": "...", "size": 12345 }. list: { "objects": [...], "count": 10 }'
+          example={`// Upload build artifacts
+{
+  "module": "s3",
+  "params": {
+    "op": "upload",
+    "bucket": "my-artifacts",
+    "source": "./dist/build.zip",
+    "key": "releases/\${pipelineId}/build.zip",
+    "endpoint": "\${env.S3_ENDPOINT}",
+    "accessKey": "\${env.S3_ACCESS_KEY}",
+    "secretKey": "\${env.S3_SECRET_KEY}"
+  }
+}
+
+// Download artifact
+{
+  "module": "s3",
+  "params": {
+    "op": "download",
+    "bucket": "my-artifacts",
+    "key": "releases/latest.zip",
+    "output": "./download.zip",
+    "endpoint": "\${env.S3_ENDPOINT}",
+    "accessKey": "\${env.S3_ACCESS_KEY}",
+    "secretKey": "\${env.S3_SECRET_KEY}"
+  }
+}
+
+// List objects
+{
+  "module": "s3",
+  "params": {
+    "op": "list",
+    "bucket": "my-artifacts",
+    "prefix": "releases/",
+    "endpoint": "\${env.S3_ENDPOINT}",
+    "accessKey": "\${env.S3_ACCESS_KEY}",
+    "secretKey": "\${env.S3_SECRET_KEY}"
+  }
+}`}
+        />
+
+        <ModuleDoc
+          id="mod-json"
+          icon={<DataObject fontSize="small" />}
+          title="json"
+          description="JSON manipulation operations: parse strings, extract/modify values by path, stringify objects, and merge."
+          params={[
+            { name: 'op', type: '"parse" | "get" | "set" | "stringify" | "merge"', required: true, description: 'Operation type' },
+            { name: 'input', type: 'any', required: true, description: 'Input data (string for parse, object for others)' },
+            { name: 'path', type: 'string', description: 'JSONPath for get/set (e.g., $.data.items[0].id)' },
+            { name: 'value', type: 'any', description: 'Value for set operation' },
+            { name: 'merge', type: 'object', description: 'Object to merge with input' },
+            { name: 'pretty', type: 'boolean', description: 'Pretty print for stringify (default: false)' },
+            { name: 'indent', type: 'number', description: 'Indentation spaces (default: 2)' }
+          ]}
+          returns='parse: object. get: extracted value. set: modified object. stringify: string. merge: merged object'
+          example={`// Parse JSON string
+{
+  "module": "json",
+  "params": {
+    "op": "parse",
+    "input": "\${prev}"
+  }
+}
+
+// Extract value by path
+{
+  "module": "json",
+  "params": {
+    "op": "get",
+    "input": "\${results.apiResponse}",
+    "path": "$.data.users[0].email"
+  }
+}
+
+// Modify value at path
+{
+  "module": "json",
+  "params": {
+    "op": "set",
+    "input": "\${results.config}",
+    "path": "$.version",
+    "value": "2.0.0"
+  }
+}
+
+// Merge objects
+{
+  "module": "json",
+  "params": {
+    "op": "merge",
+    "input": "\${results.defaults}",
+    "merge": { "override": true, "extra": "value" }
   }
 }`}
         />

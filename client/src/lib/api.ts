@@ -57,12 +57,19 @@ export interface ModuleDetails {
 }
 
 // Schema types for editor hints
+export interface VisibilityCondition {
+  param: string;                    // Parameter name to check
+  equals?: string | string[];       // Show when param equals this value (or one of values)
+  notEquals?: string | string[];    // Show when param does NOT equal this value
+}
+
 export interface ParamSchema {
   type: "string" | "number" | "boolean" | "object" | "array";
   required: boolean;
   description: string;
   default?: unknown;
   enum?: string[];
+  visibleWhen?: VisibilityCondition; // Conditional visibility based on another param
 }
 
 export interface ModuleSchema {

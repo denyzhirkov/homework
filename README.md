@@ -5,7 +5,7 @@ Minimalist self-hosted CI/CD server built with Deno and React. Define pipelines 
 ## Features
 
 - **JSON Pipelines** — Define automation workflows in simple JSON format
-- **Modular Steps** — Built-in modules: shell, docker, http, git, fs, delay, notify, archive
+- **Modular Steps** — Built-in modules: shell, docker, http, git, fs, delay, notify, archive, ssh, s3, json
 - **Docker Runner** — Execute steps in isolated Docker containers with resource limits
 - **Parallel Execution** — Run multiple steps simultaneously
 - **Variable Interpolation** — Access step results via `${results.stepName}` and `${prev}`
@@ -364,7 +364,7 @@ Wait for a specified time.
 
 ### notify
 
-Send notifications to messaging platforms (Telegram).
+Send notifications to messaging platforms (Telegram, Slack).
 
 ```json
 {
@@ -378,6 +378,30 @@ Send notifications to messaging platforms (Telegram).
   }
 }
 ```
+
+```json
+{
+  "module": "notify",
+  "params": {
+    "type": "slack",
+    "webhook": "${env.SLACK_WEBHOOK_URL}",
+    "message": "Build completed!",
+    "channel": "#deploys"
+  }
+}
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `type` | Platform: `telegram` or `slack` |
+| `token` | Telegram bot token |
+| `chatId` | Telegram chat ID |
+| `parseMode` | Telegram: `HTML` or `Markdown` |
+| `webhook` | Slack Incoming Webhook URL |
+| `channel` | Slack channel override |
+| `username` | Slack username override |
+| `iconEmoji` | Slack icon emoji (e.g., `:rocket:`) |
+| `attachments` | Slack attachments array |
 
 ### archive
 
@@ -393,6 +417,91 @@ Create or extract ZIP archives.
   }
 }
 ```
+
+### ssh
+
+Execute remote commands or copy files via SSH/SCP.
+
+```json
+{
+  "module": "ssh",
+  "params": {
+    "op": "exec",
+    "host": "server.example.com",
+    "user": "deploy",
+    "privateKey": "${env.SSH_PRIVATE_KEY}",
+    "cmd": "systemctl restart app"
+  }
+}
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `op` | Operation: `exec` (command) or `scp` (copy files) |
+| `host` | Remote host address |
+| `port` | SSH port (default: 22) |
+| `user` | SSH username |
+| `privateKey` | SSH private key content |
+| `cmd` | Command to execute (for exec) |
+| `source` | Local path (for scp) |
+| `destination` | Remote path (for scp) |
+| `recursive` | Recursive copy (default: true) |
+
+### s3
+
+S3-compatible storage operations (AWS S3, MinIO, DigitalOcean Spaces).
+
+```json
+{
+  "module": "s3",
+  "params": {
+    "op": "upload",
+    "bucket": "my-artifacts",
+    "source": "./dist/build.zip",
+    "key": "releases/v1.0.0/build.zip",
+    "endpoint": "${env.S3_ENDPOINT}",
+    "accessKey": "${env.S3_ACCESS_KEY}",
+    "secretKey": "${env.S3_SECRET_KEY}"
+  }
+}
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `op` | Operation: `upload`, `download`, `list`, `delete` |
+| `bucket` | S3 bucket name |
+| `key` | Object key (path in bucket) |
+| `source` | Local file for upload |
+| `output` | Destination for download |
+| `prefix` | Prefix filter for list |
+| `endpoint` | S3-compatible endpoint URL |
+| `region` | AWS region (default: us-east-1) |
+| `accessKey` | Access key ID |
+| `secretKey` | Secret access key |
+
+### json
+
+JSON manipulation operations.
+
+```json
+{
+  "module": "json",
+  "params": {
+    "op": "get",
+    "input": "${results.apiResponse}",
+    "path": "$.data.items[0].id"
+  }
+}
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `op` | Operation: `parse`, `get`, `set`, `stringify`, `merge` |
+| `input` | Input data (string for parse, object for others) |
+| `path` | JSONPath for get/set (e.g., `$.data.items[0]`) |
+| `value` | Value for set operation |
+| `merge` | Object to merge |
+| `pretty` | Pretty print (for stringify) |
 
 ## Smart Editor
 
