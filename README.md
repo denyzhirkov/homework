@@ -5,7 +5,7 @@ Minimalist self-hosted CI/CD server built with Deno and React. Define pipelines 
 ## Features
 
 - **JSON Pipelines** — Define automation workflows in simple JSON format
-- **Modular Steps** — Built-in modules: shell, docker, http, git, fs, delay, notify, archive, ssh, s3, json, pipeline
+- **Modular Steps** — Built-in modules: shell, docker, http, git, fs, delay, notify, archive, ssh, s3, json, pipeline, queue
 - **Docker Runner** — Execute steps in isolated Docker containers with resource limits
 - **Parallel Execution** — Run multiple steps simultaneously
 - **Variable Interpolation** — Access step results via `${results.stepName}` and `${prev}`
@@ -546,6 +546,85 @@ Run another pipeline as a step. This allows composing pipelines and reusing comm
 - Results from child pipeline can be accessed via `${prev}` or `${results.stepName}` in subsequent steps
 - If `failOnError` is `false`, the parent pipeline continues even if the child fails
 - Child pipeline must exist and not be already running
+
+### queue
+
+Message queue operations for RabbitMQ, Redis, AWS SQS, and Google Cloud Pub/Sub.
+
+**RabbitMQ Example:**
+```json
+{
+  "module": "queue",
+  "params": {
+    "op": "publish",
+    "provider": "rabbitmq",
+    "host": "http://localhost:15672",
+    "username": "${env.RABBITMQ_USER}",
+    "password": "${env.RABBITMQ_PASS}",
+    "exchange": "notifications",
+    "routingKey": "build.completed",
+    "message": "Build ${BUILD_ID} completed successfully"
+  }
+}
+```
+
+**AWS SQS Example:**
+```json
+{
+  "module": "queue",
+  "params": {
+    "op": "consume",
+    "provider": "sqs",
+    "queueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/my-queue",
+    "region": "us-east-1",
+    "accessKey": "${env.AWS_ACCESS_KEY}",
+    "secretKey": "${env.AWS_SECRET_KEY}",
+    "timeout": 10
+  }
+}
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `op` | Operation: `publish` (send) or `consume` (receive) |
+| `provider` | Provider: `rabbitmq`, `redis`, `sqs`, `pubsub` |
+| **RabbitMQ** | |
+| `host` | Management API endpoint (e.g., `http://localhost:15672`) |
+| `username` | RabbitMQ username |
+| `password` | RabbitMQ password |
+| `vhost` | Virtual host (default: `/`) |
+| `exchange` | Exchange name (for publish) |
+| `routingKey` | Routing key (for publish) |
+| `queue` | Queue name (for consume) |
+| **Redis** | |
+| `host` | Redis HTTP API endpoint |
+| `apiKey` | API key (if required) |
+| `channel` | Pub/Sub channel name |
+| `list` | List name (alternative to channel) |
+| **AWS SQS** | |
+| `queueUrl` | SQS queue URL |
+| `region` | AWS region (default: `us-east-1`) |
+| `accessKey` | AWS access key ID |
+| `secretKey` | AWS secret access key |
+| **Google Cloud Pub/Sub** | |
+| `project` | GCP project ID |
+| `topic` | Topic name (for publish) |
+| `subscription` | Subscription name (for consume) |
+| `serviceAccount` | Service account JSON object |
+| **Common** | |
+| `message` | Message to publish (string or object, supports interpolation) |
+| `timeout` | Timeout in seconds for consume (default: `10`) |
+
+**Returns:**
+- **publish**: `{ "success": true, "messageId": "...", "provider": "..." }`
+- **consume** (success): `{ "success": true, "message": "...", "messageId": "...", "provider": "..." }`
+- **consume** (no message): `{ "success": false, "timeout": true }`
+
+**Notes:**
+- **RabbitMQ**: Requires Management Plugin enabled (default on port 15672)
+- **Redis**: Requires HTTP API (Redis Stack) or HTTP wrapper service. Standard Redis uses binary protocol (RESP) and is not directly supported.
+- **AWS SQS**: Requires valid AWS credentials with SQS permissions. Uses AWS Signature V4 authentication.
+- **Google Cloud Pub/Sub**: Requires service account JSON with Pub/Sub permissions. Uses OAuth2 JWT authentication.
 
 ## Smart Editor
 
