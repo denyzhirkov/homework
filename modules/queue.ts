@@ -427,7 +427,7 @@ async function handleRabbitMQ(
       }
 
       const data = await response.json();
-      
+
       if (!data || data.length === 0) {
         if (ctx.log) ctx.log(`[Queue/RabbitMQ] No messages available`);
         return {
@@ -487,7 +487,7 @@ async function handleRedis(
 
     // Try HTTP API endpoint (Redis Stack or HTTP wrapper)
     // Format: POST /api/publish or POST /api/lpush
-    const endpoint = params.channel 
+    const endpoint = params.channel
       ? `${params.host}/api/publish`
       : `${params.host}/api/lpush`;
 
@@ -623,7 +623,7 @@ async function signSQS(
   region: string
 ): Promise<Record<string, string>> {
   const encoder = new TextEncoder();
-  
+
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const dateStamp = amzDate.substring(0, 8);
@@ -693,7 +693,7 @@ async function hmacSha256(key: Uint8Array, data: Uint8Array): Promise<Uint8Array
   new Uint8Array(keyBuffer).set(key);
   const dataBuffer = new ArrayBuffer(data.length);
   new Uint8Array(dataBuffer).set(data);
-  
+
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
     keyBuffer,
@@ -814,7 +814,7 @@ async function handleSQS(
       }
 
       const text = await response.text();
-      
+
       // Parse XML response
       const messageMatch = text.match(/<Message>([\s\S]*?)<\/Message>/);
       if (!messageMatch) {
@@ -854,10 +854,10 @@ async function handleSQS(
 
 async function getPubSubAccessToken(serviceAccount: Record<string, unknown>): Promise<string> {
   // Generate JWT and exchange for access token using RSA signing
-  
+
   const encoder = new TextEncoder();
   const now = Math.floor(Date.now() / 1000);
-  
+
   const header = {
     alg: "RS256",
     typ: "JWT"
@@ -895,7 +895,7 @@ async function getPubSubAccessToken(serviceAccount: Record<string, unknown>): Pr
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
     .replace(/\s/g, "");
-  
+
   const privateKeyBytes = Uint8Array.from(atob(privateKeyContent), c => c.charCodeAt(0));
 
   // Import private key for RSA signing
@@ -919,7 +919,7 @@ async function getPubSubAccessToken(serviceAccount: Record<string, unknown>): Pr
 
   const signatureB64 = base64UrlEncode(String.fromCharCode(...new Uint8Array(signature)));
   const jwt = `${unsignedJwt}.${signatureB64}`;
-  
+
   // Exchange JWT for access token
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -975,7 +975,7 @@ async function handlePubSub(
     if (ctx.log) ctx.log(`[Queue/PubSub] Publishing to topic '${params.topic}'`);
 
     const url = `https://pubsub.googleapis.com/v1/projects/${params.project}/topics/${params.topic}:publish`;
-    
+
     const body = {
       messages: [
         {
@@ -1026,7 +1026,7 @@ async function handlePubSub(
     if (ctx.log) ctx.log(`[Queue/PubSub] Consuming from subscription '${params.subscription}' (timeout: ${timeout}s)`);
 
     const url = `https://pubsub.googleapis.com/v1/projects/${params.project}/subscriptions/${params.subscription}:pull`;
-    
+
     const body = {
       maxMessages: 1,
       returnImmediately: timeout === 0
@@ -1049,7 +1049,7 @@ async function handlePubSub(
       }
 
       const data = await response.json();
-      
+
       if (!data.receivedMessages || data.receivedMessages.length === 0) {
         if (ctx.log) ctx.log(`[Queue/PubSub] No messages available`);
         return {
