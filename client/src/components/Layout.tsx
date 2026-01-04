@@ -94,6 +94,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <ListItemText primary="Documentation" />
               </ListItemButton>
             </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/settings">
+                <ListItemIcon><Settings /></ListItemIcon>
+                <ListItemText primary="Settings" />
+              </ListItemButton>
+            </ListItem>
           </List>
         </Box>
       </Drawer>

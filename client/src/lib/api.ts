@@ -176,3 +176,81 @@ export const saveVariables = (vars: VariablesConfig) =>
 
 export const getStats = () => 
   api.get<SystemStats>("/stats");
+
+// --- Backup & Restore ---
+
+export interface BackupImportResult {
+  success: boolean;
+  pipelines: number;
+  modules: number;
+  variables: boolean;
+  details: {
+    pipelines: {
+      success: number;
+      failed: number;
+      errors: string[];
+    };
+    modules: {
+      success: number;
+      failed: number;
+      errors: string[];
+    };
+    variables: {
+      success: boolean;
+      error?: string;
+    };
+  };
+}
+
+/**
+ * Export system backup as ZIP file
+ * Downloads the backup file directly
+ */
+export async function exportBackup(): Promise<void> {
+  const response = await fetch(`${API_BASE}/settings/backup/export`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Failed to export backup" }));
+    throw new Error(error.error || "Failed to export backup");
+  }
+
+  // Get filename from Content-Disposition header or use default
+  const contentDisposition = response.headers.get("Content-Disposition");
+  let filename = "backup.zip";
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename="(.+)"/);
+    if (match) {
+      filename = match[1];
+    }
+  }
+
+  // Create blob and download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Import system backup from ZIP file
+ */
+export async function importBackup(file: File): Promise<BackupImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE}/settings/backup/import`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Failed to import backup" }));
+    throw new Error(error.error || "Failed to import backup");
+  }
+
+  return response.json();
+}

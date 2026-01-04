@@ -8,6 +8,7 @@ import ModuleDetail from "./pages/ModuleDetail";
 import Variables from "./pages/Variables";
 import Dashboard from "./pages/Dashboard";
 import Documentation from "./pages/Documentation";
+import Settings from "./pages/Settings";
 
 // Dark theme configuration
 const darkTheme = createTheme({
@@ -50,6 +51,7 @@ function App() {
             <Route path="/modules/new" element={<ModuleDetail />} />
             <Route path="/variables" element={<Variables />} />
             <Route path="/docs" element={<Documentation />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </Layout>
       </Router>
