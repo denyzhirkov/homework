@@ -9,7 +9,10 @@
     "migrate:logs": "deno run -A server/migrate-logs.ts",
     "cleanup": "deno run -A server/cleanup.ts",
     "reset": "deno run -A server/cleanup.ts --reset",
-    "version": "deno run -A scripts/version.ts"
+    "version": "deno run -A scripts/version.ts",
+    "fmt": "deno fmt",
+    "lint": "deno lint",
+    "check": "deno fmt --check && deno lint && cd client && npm run lint"
   },
   "imports": {
     "hono": "jsr:@hono/hono@^4.0.0",
@@ -23,5 +26,57 @@
   },
   "compilerOptions": {
     "strict": true
+  },
+  "lint": {
+    "files": {
+      "include": [
+        "server",
+        "modules",
+        "scripts",
+        "pipelines",
+        "docker",
+        "config",
+        "README.md",
+        "PLANNED_MODULES.md"
+      ],
+      "exclude": [
+        "client",
+        "logs",
+        "tmp",
+        "data"
+      ]
+    },
+    "rules": {
+      "tags": [
+        "recommended"
+      ]
+    }
+  },
+  "fmt": {
+    "files": {
+      "include": [
+        "server",
+        "modules",
+        "scripts",
+        "pipelines",
+        "docker",
+        "config",
+        "README.md",
+        "PLANNED_MODULES.md",
+        "env.example",
+        "deno.json"
+      ],
+      "exclude": [
+        "client",
+        "logs",
+        "tmp",
+        "data"
+      ]
+    },
+    "options": {
+      "useTabs": false,
+      "indentWidth": 2,
+      "lineWidth": 100
+    }
   }
 }

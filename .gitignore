@@ -14,7 +14,10 @@ yarn-error.log*
 # Database
 data/
 *.db
+*.sqlite
+*.sqlite3
 *.db-journal
+*.sqlite-journal
 *.db-wal
 *.db-shm
 
@@ -25,6 +28,7 @@ tmp/
 node_modules/
 dist/
 build/
+*.tsbuildinfo
 
 # Deno
 cov_profile
@@ -33,9 +37,11 @@ coverage
 # Client specific
 client/node_modules/
 client/dist/
+client/.vite/
 client/.env
 client/.env.local
 client/.env.*.local
+client/.eslintcache
 
 # Editors
 .vscode/
@@ -51,8 +57,10 @@ config.local.json
 
 # Docker
 .docker/
+docker-compose.override.yml
 
 # Environment files (keep env.example)
 .env
 .env.local
 .env.*.local
+.direnv/
