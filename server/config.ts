@@ -30,6 +30,11 @@ export const config = {
   dockerCpuLimit: getEnv("DOCKER_CPU_LIMIT", "1"),
   dockerNetworkDefault: getEnv("DOCKER_NETWORK_DEFAULT", "bridge"),
   dockerTimeoutMs: getEnvInt("DOCKER_TIMEOUT_MS", 600000), // 10 minutes
+
+  // --- Updates ---
+  githubRepo: getEnv("GITHUB_REPO", ""),
+  autoUpdateEnabled: getEnvBool("AUTO_UPDATE_ENABLED", false),
+  repoPath: getEnv("REPO_PATH", ""),
 };
 
 // Log configuration on startup (hide sensitive values)
@@ -51,5 +56,12 @@ export function logConfig(): void {
     console.log(`  DOCKER_CPU_LIMIT: ${config.dockerCpuLimit}`);
     console.log(`  DOCKER_NETWORK_DEFAULT: ${config.dockerNetworkDefault}`);
     console.log(`  DOCKER_TIMEOUT_MS: ${config.dockerTimeoutMs}`);
+  }
+  if (config.githubRepo) {
+    console.log(`  GITHUB_REPO: ${config.githubRepo}`);
+    console.log(`  AUTO_UPDATE_ENABLED: ${config.autoUpdateEnabled}`);
+    if (config.repoPath) {
+      console.log(`  REPO_PATH: ${config.repoPath}`);
+    }
   }
 }

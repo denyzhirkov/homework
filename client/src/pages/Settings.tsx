@@ -16,8 +16,10 @@ import {
   Backup,
   CheckCircle,
   Error as ErrorIcon,
+  SystemUpdateAlt,
+  Refresh,
 } from "@mui/icons-material";
-import { exportBackup, importBackup, type BackupImportResult } from "../lib/api";
+import { exportBackup, importBackup, type BackupImportResult, checkUpdates, applyUpdate, type UpdateInfo, type UpdateResult } from "../lib/api";
 
 export default function Settings() {
   const [exporting, setExporting] = useState(false);
@@ -25,6 +27,12 @@ export default function Settings() {
   const [importResult, setImportResult] = useState<BackupImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Updates state
+  const [checking, setChecking] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null);
 
   const handleExport = async () => {
     setExporting(true);
@@ -67,6 +75,42 @@ export default function Settings() {
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleCheckUpdates = async () => {
+    setChecking(true);
+    setError(null);
+    setUpdateInfo(null);
+    try {
+      const info = await checkUpdates();
+      setUpdateInfo(info);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to check for updates");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    if (!window.confirm("Are you sure you want to apply the update? It's recommended to create a backup first.")) {
+      return;
+    }
+
+    setUpdating(true);
+    setError(null);
+    setUpdateResult(null);
+    try {
+      const result = await applyUpdate();
+      setUpdateResult(result);
+      // Refresh update info after update
+      if (result.success) {
+        await handleCheckUpdates();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to apply update");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -218,6 +262,133 @@ export default function Settings() {
             </Typography>
           </Alert>
         )}
+      </Paper>
+
+      {/* Updates Section */}
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+          <SystemUpdateAlt sx={{ mr: 1, color: "primary.main" }} />
+          <Typography variant="h6">Updates</Typography>
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Check for available updates and apply them automatically or manually.
+        </Typography>
+
+        <Divider sx={{ mb: 3 }} />
+
+        <Stack spacing={3}>
+          {/* Check Updates Section */}
+          <Box>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+              Check for Updates
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Check GitHub for the latest version of HomeworkCI.
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={checking ? <CircularProgress size={16} /> : <Refresh />}
+              onClick={handleCheckUpdates}
+              disabled={checking}
+            >
+              {checking ? "Checking..." : "Check for Updates"}
+            </Button>
+          </Box>
+
+          {/* Update Info */}
+          {updateInfo && (
+            <Box>
+              <Alert
+                severity={updateInfo.available ? "info" : "success"}
+                sx={{ mb: 2 }}
+              >
+                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                  {updateInfo.available
+                    ? `Update available: ${updateInfo.latest}`
+                    : "You are running the latest version"}
+                </Typography>
+                <Typography variant="body2">
+                  Current version: {updateInfo.current}
+                  {updateInfo.latest && ` • Latest version: ${updateInfo.latest}`}
+                </Typography>
+                {updateInfo.available && !updateInfo.canAutoUpdate && (
+                  <Typography variant="body2" sx={{ mt: 1, fontStyle: "italic" }}>
+                    Automatic update is not available. Please update manually.
+                  </Typography>
+                )}
+              </Alert>
+
+              {updateInfo.available && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={updating ? <CircularProgress size={16} /> : <SystemUpdateAlt />}
+                  onClick={handleApplyUpdate}
+                  disabled={updating}
+                  sx={{ mt: 1 }}
+                >
+                  {updating ? "Updating..." : "Apply Update"}
+                </Button>
+              )}
+            </Box>
+          )}
+
+          {/* Update Result */}
+          {updateResult && (
+            <Alert
+              severity={updateResult.success ? "success" : "warning"}
+              icon={updateResult.success ? <CheckCircle /> : <ErrorIcon />}
+              onClose={() => setUpdateResult(null)}
+            >
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                {updateResult.success
+                  ? "Update applied successfully"
+                  : updateResult.manual
+                  ? "Manual update required"
+                  : "Update failed"}
+              </Typography>
+              {updateResult.message && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  {updateResult.message}
+                </Typography>
+              )}
+              {updateResult.instructions && updateResult.instructions.length > 0 && (
+                <Box component="ul" sx={{ pl: 2, mt: 1, mb: 0 }}>
+                  {updateResult.instructions.map((instruction, idx) => (
+                    <li key={idx}>
+                      <Typography variant="body2" component="span">
+                        {instruction}
+                      </Typography>
+                    </li>
+                  ))}
+                </Box>
+              )}
+              {updateResult.error && (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  Error: {updateResult.error}
+                </Typography>
+              )}
+              {updateResult.syncResult && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
+                    Sync results:
+                  </Typography>
+                  <Typography variant="body2" component="div">
+                    <Box component="span" sx={{ display: "block" }}>
+                      Pipelines: {updateResult.syncResult.pipelines.updated.length} updated
+                    </Box>
+                    <Box component="span" sx={{ display: "block" }}>
+                      Modules: {updateResult.syncResult.modules.updated.length} updated
+                    </Box>
+                    <Box component="span" sx={{ display: "block" }}>
+                      Variables: {updateResult.syncResult.variables.updated ? "updated" : "no changes"}
+                    </Box>
+                  </Typography>
+                </Box>
+              )}
+            </Alert>
+          )}
+        </Stack>
       </Paper>
     </Container>
   );

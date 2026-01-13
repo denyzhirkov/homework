@@ -9,7 +9,7 @@ import { config, logConfig } from "./config.ts";
 import { initVersion, getVersionSync } from "./utils/index.ts";
 import { cleanupOldSandboxes } from "./engine.ts";
 import { handleWebSocket } from "./websocket.ts";
-import { pipelines, modules, variables, stats, settings, handleSandboxCleanup } from "./routes/index.ts";
+import { pipelines, modules, variables, stats, settings, updates, handleSandboxCleanup } from "./routes/index.ts";
 
 const app = new Hono();
 
@@ -39,6 +39,7 @@ app.route("/api/modules", modules);
 app.route("/api/variables", variables);
 app.route("/api/stats", stats);
 app.route("/api/settings", settings);
+app.route("/api/updates", updates);
 
 // Sandbox cleanup endpoint
 app.post("/api/sandbox/cleanup", handleSandboxCleanup);

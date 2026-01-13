@@ -263,3 +263,58 @@ export async function importBackup(file: File): Promise<BackupImportResult> {
 
   return response.json();
 }
+
+// --- Updates ---
+
+export interface UpdateInfo {
+  available: boolean;
+  current: string;
+  latest: string | null;
+  canAutoUpdate: boolean;
+}
+
+export interface SyncResult {
+  pipelines: {
+    updated: string[];
+    skipped: string[];
+    errors: string[];
+  };
+  modules: {
+    updated: string[];
+    skipped: string[];
+    errors: string[];
+  };
+  variables: {
+    updated: boolean;
+    error?: string;
+  };
+}
+
+export interface UpdateResult {
+  success: boolean;
+  manual?: boolean;
+  message?: string;
+  currentVersion?: string;
+  newVersion?: string;
+  syncResult?: SyncResult;
+  instructions?: string[];
+  error?: string;
+}
+
+/**
+ * Check for available updates
+ */
+export const checkUpdates = () => 
+  api.get<UpdateInfo>("/updates/check");
+
+/**
+ * Apply update (automatic or manual instructions)
+ */
+export const applyUpdate = () => 
+  api.post<UpdateResult>("/updates/apply");
+
+/**
+ * Sync default files from repository
+ */
+export const syncDefaults = () => 
+  api.post<{ success: boolean } & SyncResult>("/updates/sync-defaults");

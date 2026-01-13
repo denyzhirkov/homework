@@ -27,6 +27,10 @@ services:
       - DOCKER_CPU_LIMIT=${DOCKER_CPU_LIMIT:-1}
       - DOCKER_NETWORK_DEFAULT=${DOCKER_NETWORK_DEFAULT:-bridge}
       - DOCKER_TIMEOUT_MS=${DOCKER_TIMEOUT_MS:-600000}
+      # Update settings
+      - GITHUB_REPO=${GITHUB_REPO:-}
+      - AUTO_UPDATE_ENABLED=${AUTO_UPDATE_ENABLED:-false}
+      - REPO_PATH=${REPO_PATH:-}
     volumes:
       # Persistent data
       - homeworkci-data:/app/data
@@ -37,6 +41,8 @@ services:
       # Temporary sandbox - bind mount for Docker-in-Docker access
       # Docker containers spawned from server need host path access
       - ${SANDBOX_HOST_PATH:-/tmp/homeworkci}:/app/tmp
+      # Repository mount for auto-updates (optional, uncomment if REPO_PATH is set)
+      # - ${REPO_PATH}:/app/repo:ro
       # Docker socket for Docker-in-Docker (required for docker module)
       - /var/run/docker.sock:/var/run/docker.sock
     # Run as root for Docker socket access (required for docker module)
