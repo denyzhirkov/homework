@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: docker/server.Dockerfile
-    container_name: homeworkci-server
+    container_name: homeworkci
     restart: unless-stopped
     ports:
       - "${CLIENT_PORT:-80}:8008"
