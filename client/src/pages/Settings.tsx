@@ -312,9 +312,25 @@ export default function Settings() {
                   {updateInfo.latest && ` • Latest version: ${updateInfo.latest}`}
                 </Typography>
                 {updateInfo.available && !updateInfo.canAutoUpdate && (
-                  <Typography variant="body2" sx={{ mt: 1, fontStyle: "italic" }}>
-                    Automatic update is not available. Please update manually.
-                  </Typography>
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="body2" sx={{ fontStyle: "italic", mb: 0.5 }}>
+                      Automatic update is not available.
+                    </Typography>
+                    {updateInfo.autoUpdateReason && (
+                      <Typography variant="body2" sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
+                        Reason: {updateInfo.autoUpdateReason}
+                      </Typography>
+                    )}
+                    {updateInfo.autoUpdateReason?.includes("volume") && (
+                      <Typography variant="body2" sx={{ fontSize: "0.875rem", mt: 1, color: "info.main" }}>
+                        To enable automatic updates, uncomment the REPO_PATH volume line in docker-compose.yml:
+                        <Box component="code" sx={{ display: "block", mt: 0.5, p: 1, bgcolor: "grey.100", borderRadius: 1 }}>
+                          - ${"{REPO_PATH}"}:/app/repo:ro
+                        </Box>
+                        Then restart containers: docker compose up -d
+                      </Typography>
+                    )}
+                  </Box>
                 )}
               </Alert>
 

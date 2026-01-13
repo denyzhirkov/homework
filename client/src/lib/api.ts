@@ -105,33 +105,33 @@ export interface SystemStats {
 
 // --- Pipelines ---
 
-export const getPipelines = () => 
+export const getPipelines = () =>
   api.get<Pipeline[]>("/pipelines");
 
-export const getPipeline = (id: string) => 
+export const getPipeline = (id: string) =>
   api.get<Pipeline>(`/pipelines/${encodeURIComponent(id)}`);
 
-export const createPipeline = (pipeline: Omit<Pipeline, "id">) => 
+export const createPipeline = (pipeline: Omit<Pipeline, "id">) =>
   api.post<{ success: boolean; id: string }>("/pipelines", pipeline);
 
-export const savePipeline = (id: string, pipeline: Omit<Pipeline, "id">) => 
+export const savePipeline = (id: string, pipeline: Omit<Pipeline, "id">) =>
   api.post<{ success: boolean; id: string }>(`/pipelines/${encodeURIComponent(id)}`, pipeline);
 
-export const deletePipeline = (id: string) => 
+export const deletePipeline = (id: string) =>
   api.delete<{ success: boolean }>(`/pipelines/${encodeURIComponent(id)}`);
 
-export const runPipeline = (id: string, inputs?: Record<string, string | boolean>) => 
+export const runPipeline = (id: string, inputs?: Record<string, string | boolean>) =>
   api.post<RunResult>(`/pipelines/${encodeURIComponent(id)}/run`, inputs ? { inputs } : undefined);
 
-export const stopPipeline = (id: string) => 
+export const stopPipeline = (id: string) =>
   api.post<{ success: boolean }>(`/pipelines/${encodeURIComponent(id)}/stop`);
 
-export const toggleSchedulePause = (id: string) => 
+export const toggleSchedulePause = (id: string) =>
   api.post<{ success: boolean; schedulePaused: boolean }>(`/pipelines/${encodeURIComponent(id)}/schedule/toggle`);
 
 // --- Run History ---
 
-export const getRunHistory = (pipelineId: string) => 
+export const getRunHistory = (pipelineId: string) =>
   api.get<RunHistoryEntry[]>(`/pipelines/${encodeURIComponent(pipelineId)}/runs`);
 
 export async function getRunLog(pipelineId: string, runId: string): Promise<string> {
@@ -144,19 +144,19 @@ export async function getRunLog(pipelineId: string, runId: string): Promise<stri
 
 // --- Modules ---
 
-export const getModules = () => 
+export const getModules = () =>
   api.get<ModuleInfo[]>("/modules");
 
-export const getModuleDetails = (id: string) => 
+export const getModuleDetails = (id: string) =>
   api.get<ModuleDetails>(`/modules/${encodeURIComponent(id)}`);
 
-export const saveModule = (id: string, source: string) => 
+export const saveModule = (id: string, source: string) =>
   api.post<{ success: boolean }>(`/modules/${encodeURIComponent(id)}`, { source });
 
-export const deleteModule = (id: string) => 
+export const deleteModule = (id: string) =>
   api.delete<{ success: boolean }>(`/modules/${encodeURIComponent(id)}`);
 
-export const getModuleSchemas = () => 
+export const getModuleSchemas = () =>
   api.get<ModuleSchemasMap>("/modules/schemas");
 
 // --- Variables ---
@@ -172,18 +172,18 @@ export interface VariablesConfig {
   sshKeys?: Record<string, SSHKeyPair>; // name -> key pair
 }
 
-export const getVariables = () => 
+export const getVariables = () =>
   api.get<VariablesConfig>("/variables");
 
-export const saveVariables = (vars: VariablesConfig) => 
+export const saveVariables = (vars: VariablesConfig) =>
   api.post<{ success: boolean }>("/variables", vars);
 
-export const generateSSHKey = (name: string) => 
+export const generateSSHKey = (name: string) =>
   api.post<SSHKeyPair>("/variables/ssh-keys/generate", { name });
 
 // --- Stats ---
 
-export const getStats = () => 
+export const getStats = () =>
   api.get<SystemStats>("/stats");
 
 // --- Backup & Restore ---
@@ -271,6 +271,7 @@ export interface UpdateInfo {
   current: string;
   latest: string | null;
   canAutoUpdate: boolean;
+  autoUpdateReason?: string;
 }
 
 export interface SyncResult {
@@ -304,17 +305,17 @@ export interface UpdateResult {
 /**
  * Check for available updates
  */
-export const checkUpdates = () => 
+export const checkUpdates = () =>
   api.get<UpdateInfo>("/updates/check");
 
 /**
  * Apply update (automatic or manual instructions)
  */
-export const applyUpdate = () => 
+export const applyUpdate = () =>
   api.post<UpdateResult>("/updates/apply");
 
 /**
  * Sync default files from repository
  */
-export const syncDefaults = () => 
+export const syncDefaults = () =>
   api.post<{ success: boolean } & SyncResult>("/updates/sync-defaults");

@@ -11,17 +11,27 @@ const app = new Hono();
 /**
  * Check if repository path is accessible
  */
-async function checkRepoAccess(repoPath: string): Promise<boolean> {
+async function checkRepoAccess(repoPath: string): Promise<{ accessible: boolean; reason?: string }> {
   try {
-    if (await exists(repoPath)) {
-      // Check if it's a git repository
-      const gitDir = join(repoPath, ".git");
-      return await exists(gitDir);
+    const pathExists = await exists(repoPath);
+
+    if (!pathExists) {
+      return { accessible: false, reason: `Path ${repoPath} does not exist in container` };
     }
+
+    // Check if it's a git repository
+    const gitDir = join(repoPath, ".git");
+    const gitExists = await exists(gitDir);
+
+    if (!gitExists) {
+      return { accessible: false, reason: `Path ${repoPath} exists but is not a git repository (no .git directory)` };
+    }
+
+    return { accessible: true };
   } catch (e) {
-    console.error(`Failed to check repo access:`, e);
+    console.error(`[Update] Failed to check repo access:`, e);
+    return { accessible: false, reason: `Error checking access: ${String(e)}` };
   }
-  return false;
 }
 
 /**
@@ -79,13 +89,28 @@ app.get("/check", async (c) => {
 
     // Check if auto-update is possible
     const repoPath = config.repoPath ? "/app/repo" : null;
-    const canAutoUpdate = repoPath ? await checkRepoAccess(repoPath) : false;
+    let canAutoUpdate = false;
+    let autoUpdateReason = "";
+
+    if (!config.repoPath) {
+      autoUpdateReason = "REPO_PATH not configured in environment variables";
+    } else if (!config.autoUpdateEnabled) {
+      autoUpdateReason = "AUTO_UPDATE_ENABLED is false";
+    } else if (repoPath) {
+      const accessCheck = await checkRepoAccess(repoPath);
+      if (accessCheck.accessible) {
+        canAutoUpdate = true;
+      } else {
+        autoUpdateReason = accessCheck.reason || "Repository not accessible. Make sure REPO_PATH volume is mounted in docker-compose.yml";
+      }
+    }
 
     return c.json({
       available: updateInfo.available,
       current: updateInfo.current,
       latest: updateInfo.latest,
       canAutoUpdate,
+      autoUpdateReason: canAutoUpdate ? undefined : autoUpdateReason,
     });
   } catch (e) {
     console.error("Error checking for updates:", e);
@@ -121,7 +146,6 @@ app.post("/apply", async (c) => {
         // 1. Create backup (using existing backup endpoint)
         // Note: We could call the backup endpoint internally, but for simplicity
         // we'll just proceed with the update. User should create backup manually if needed.
-        console.log("[Update] Starting automatic update...");
 
         // 2. Git pull
         const pullResult = await gitPull(repoPath!);
@@ -142,7 +166,7 @@ app.post("/apply", async (c) => {
         }
 
         // 4. Sync default files
-        const syncResult = await syncDefaultFiles(repoPath);
+        const syncResult = await syncDefaultFiles(repoPath || undefined);
 
         return c.json({
           success: true,
@@ -196,13 +220,14 @@ app.post("/sync-defaults", async (c) => {
       }, 400);
     }
 
-    if (!(await checkRepoAccess(repoPath))) {
+    const accessCheck = await checkRepoAccess(repoPath);
+    if (!accessCheck.accessible) {
       return c.json({
-        error: "Repository not accessible or not a git repository",
+        error: accessCheck.reason || "Repository not accessible or not a git repository",
       }, 400);
     }
 
-    const syncResult = await syncDefaultFiles(repoPath);
+    const syncResult = await syncDefaultFiles(repoPath || undefined);
 
     return c.json({
       success: true,
