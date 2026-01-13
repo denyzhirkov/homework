@@ -2,7 +2,7 @@
 // Orchestrates pipeline runs with step execution, logging, and cleanup
 
 import { loadModule } from "./modules.ts";
-import { getMergedEnv } from "./variables.ts";
+import { getMergedEnv, getSSHPrivateKeys } from "./variables.ts";
 import { startRun, saveLog, startStep, endStep } from "./logger.ts";
 import { config } from "./config.ts";
 import { killContainersForRun, stopPersistentContainer } from "./docker-manager.ts";
@@ -97,6 +97,7 @@ function formatDateComponents(timestamp: number): {
 function createPipelineContext(
   sandboxPath: string,
   mergedEnv: Record<string, string>,
+  sshKeys: Record<string, string>,
   pipelineId: string,
   startTime: number,
   sanitizedLog: (msg: string) => void,
@@ -117,6 +118,7 @@ function createPipelineContext(
     workDir: sandboxPath,
     env: Object.freeze({ ...mergedEnv }),
     inputs: Object.freeze({ ...inputs }),
+    sshKey: Object.freeze({ ...sshKeys }),
     pipelineId,
     startTime,
     log: sanitizedLog,
@@ -138,6 +140,7 @@ function createPipelineContext(
     workDir: { value: frozenFields.workDir, writable: false, enumerable: true },
     env: { value: frozenFields.env, writable: false, enumerable: true },
     inputs: { value: frozenFields.inputs, writable: false, enumerable: true },
+    sshKey: { value: frozenFields.sshKey, writable: false, enumerable: true },
     pipelineId: { value: frozenFields.pipelineId, writable: false, enumerable: true },
     startTime: { value: frozenFields.startTime, writable: false, enumerable: true },
     log: { value: frozenFields.log, writable: false, enumerable: true },
@@ -277,7 +280,8 @@ export async function runPipeline(
 
   // Create context
   const mergedEnv = await getMergedEnv(resolvedPipelineEnv);
-  const ctx = createPipelineContext(sandboxPath, mergedEnv, id, startTime, sanitizedLog, controller.signal, inputs, runId, pipeline.name);
+  const sshKeys = await getSSHPrivateKeys();
+  const ctx = createPipelineContext(sandboxPath, mergedEnv, sshKeys, id, startTime, sanitizedLog, controller.signal, inputs, runId, pipeline.name);
 
   sanitizedLog(`[Sandbox] Created isolated working directory: ${sandboxPath}`);
 

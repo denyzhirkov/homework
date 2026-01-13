@@ -432,6 +432,27 @@ Create or extract ZIP archives.
 
 Execute remote commands or copy files via SSH/SCP.
 
+**Recommended: Use SSH keys from Variables page**
+
+Generate SSH keys on the Variables page, then reference them by name:
+
+```json
+{
+  "module": "ssh",
+  "params": {
+    "op": "exec",
+    "host": "server.example.com",
+    "user": "deploy",
+    "keyName": "production-server",
+    "cmd": "systemctl restart app"
+  }
+}
+```
+
+**Alternative: Direct private key**
+
+You can also provide the private key directly (less secure):
+
 ```json
 {
   "module": "ssh",
@@ -445,17 +466,48 @@ Execute remote commands or copy files via SSH/SCP.
 }
 ```
 
+**SCP example:**
+
+```json
+{
+  "module": "ssh",
+  "params": {
+    "op": "scp",
+    "host": "server.example.com",
+    "user": "deploy",
+    "keyName": "production-server",
+    "source": "./dist/",
+    "destination": "/var/www/app/",
+    "recursive": true
+  }
+}
+```
+
 | Parameter | Description |
 |-----------|-------------|
 | `op` | Operation: `exec` (command) or `scp` (copy files) |
 | `host` | Remote host address |
 | `port` | SSH port (default: 22) |
 | `user` | SSH username |
-| `privateKey` | SSH private key content |
-| `cmd` | Command to execute (for exec) |
-| `source` | Local path (for scp) |
-| `destination` | Remote path (for scp) |
-| `recursive` | Recursive copy (default: true) |
+| `keyName` | SSH key name from Variables page (recommended) |
+| `privateKey` | SSH private key content (alternative to keyName) |
+| `cmd` | Command to execute (required for exec) |
+| `source` | Local path (required for scp) |
+| `destination` | Remote path (required for scp) |
+| `recursive` | Recursive copy for directories (default: true) |
+| `timeout` | Operation timeout in milliseconds (default: 60000) |
+
+**SSH Key Management:**
+
+1. Go to **Variables** page
+2. In **SSH Keys** section, click **Generate SSH Key**
+3. Enter a name (e.g., `production-server`)
+4. Copy the public key and add it to the remote server's `~/.ssh/authorized_keys`
+5. Use `keyName` parameter in your pipeline steps
+
+**Returns:**
+- `exec`: `{ "code": 0, "stdout": "...", "stderr": "..." }`
+- `scp`: `{ "success": true, "files": 5 }`
 
 ### s3
 

@@ -1,14 +1,14 @@
 // SSH operations: execute remote commands and copy files.
 // Tags: built-in
 //
-// Usage Example (exec):
+// Usage Example (exec with keyName - recommended):
 // {
 //   "module": "ssh",
 //   "params": {
 //     "op": "exec",
 //     "host": "server.example.com",
 //     "user": "deploy",
-//     "privateKey": "${env.SSH_PRIVATE_KEY}",
+//     "keyName": "production-server",
 //     "cmd": "systemctl restart app"
 //   }
 // }
@@ -20,7 +20,7 @@
 //     "op": "scp",
 //     "host": "server.example.com",
 //     "user": "deploy",
-//     "privateKey": "${env.SSH_PRIVATE_KEY}",
+//     "keyName": "production-server",
 //     "source": "./dist/",
 //     "destination": "/var/www/app/"
 //   }
@@ -34,8 +34,8 @@
 //     "host": "server.com",       // Remote host (required)
 //     "port": 22,                 // SSH port (optional, default: 22)
 //     "user": "deploy",           // SSH user (required)
-//     "privateKey": "-----BEGIN...", // Private key content (required)
-//     "passphrase": "secret",     // Key passphrase (optional)
+//     "keyName": "my-key",        // SSH key name from Variables page (recommended)
+//     "privateKey": "-----BEGIN...", // Private key content (alternative to keyName)
 //     "cmd": "ls -la",            // Command to execute (required for exec)
 //     "source": "./local/path",   // Source path for scp (required for scp)
 //     "destination": "/remote/path", // Destination path for scp (required for scp)
@@ -48,7 +48,8 @@
 // - exec: { "code": 0, "stdout": "...", "stderr": "..." }
 // - scp: { "success": true, "files": 5 }
 //
-// Note: The privateKey should be stored in environment variables for security.
+// Note: Use keyName to reference SSH keys created on the Variables page.
+// Alternatively, privateKey can contain the key content directly.
 // Supports both RSA and Ed25519 keys.
 
 import type { PipelineContext } from "../server/types/index.ts";
@@ -80,15 +81,15 @@ export const schema = {
       required: true,
       description: "SSH username"
     },
-    privateKey: {
-      type: "string",
-      required: true,
-      description: "SSH private key content (use ${env.SSH_PRIVATE_KEY})"
-    },
-    passphrase: {
+    keyName: {
       type: "string",
       required: false,
-      description: "Passphrase for encrypted private key"
+      description: "SSH key name from Variables page (recommended, use instead of privateKey)"
+    },
+    privateKey: {
+      type: "string",
+      required: false,
+      description: "SSH private key content (alternative to keyName)"
     },
     timeout: {
       type: "number",
@@ -131,8 +132,8 @@ export interface SSHParams {
   host: string;
   port?: number;
   user: string;
-  privateKey: string;
-  passphrase?: string;
+  keyName?: string;      // SSH key name from Variables page
+  privateKey?: string;   // Direct key content (alternative to keyName)
   cmd?: string;
   source?: string;
   destination?: string;
@@ -164,8 +165,39 @@ export async function run(
   if (!params.user) {
     throw new Error("SSH module requires 'user' parameter");
   }
-  if (!params.privateKey) {
-    throw new Error("SSH module requires 'privateKey' parameter");
+
+  // Resolve private key: either from keyName or direct privateKey
+  let privateKey = params.privateKey;
+  if (params.keyName) {
+    const key = ctx.sshKey[params.keyName];
+    if (!key) {
+      throw new Error(`SSH key '${params.keyName}' not found. Create it on the Variables page.`);
+    }
+    privateKey = key;
+    if (ctx.log) ctx.log(`[SSH] Using SSH key: ${params.keyName}`);
+  }
+
+  if (!privateKey) {
+    throw new Error("SSH module requires 'keyName' or 'privateKey' parameter");
+  }
+
+  // Validate key format
+  if (!privateKey.includes("BEGIN") || !privateKey.includes("END")) {
+    throw new Error("Invalid SSH private key format: missing BEGIN/END markers");
+  }
+  
+  // Validate key length (Ed25519 keys are typically 400-500 chars, RSA longer)
+  if (privateKey.length < 200) {
+    throw new Error(`SSH private key seems too short (${privateKey.length} chars). Key may be corrupted.`);
+  }
+
+  // Normalize key: trim leading/trailing whitespace but preserve structure
+  privateKey = privateKey.trim();
+  // Replace Windows line endings and normalize to Unix
+  privateKey = privateKey.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Ensure key ends with newline (required by OpenSSH)
+  if (!privateKey.endsWith('\n')) {
+    privateKey += '\n';
   }
 
   const port = params.port || 22;
@@ -174,7 +206,7 @@ export async function run(
   // Write private key to temporary file (ssh requires file, not string)
   const keyPath = join(ctx.workDir, `.ssh_key_${Date.now()}`);
   try {
-    await Deno.writeTextFile(keyPath, params.privateKey);
+    await Deno.writeTextFile(keyPath, privateKey);
     // Set permissions to 600 (owner read/write only)
     await Deno.chmod(keyPath, 0o600);
 
@@ -217,9 +249,6 @@ async function executeSSH(
     "-o", "BatchMode=yes",
     "-o", `ConnectTimeout=${Math.floor(timeout / 1000)}`,
   ];
-
-  // Add passphrase support via SSH_ASKPASS would require additional complexity
-  // For now, we assume key is not password-protected or user handles it
 
   args.push(`${params.user}@${params.host}`, params.cmd);
 

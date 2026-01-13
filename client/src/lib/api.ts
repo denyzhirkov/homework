@@ -161,9 +161,15 @@ export const getModuleSchemas = () =>
 
 // --- Variables ---
 
+export interface SSHKeyPair {
+  privateKey: string;
+  publicKey: string;
+}
+
 export interface VariablesConfig {
   global: Record<string, string>;
   environments: Record<string, Record<string, string>>;
+  sshKeys?: Record<string, SSHKeyPair>; // name -> key pair
 }
 
 export const getVariables = () => 
@@ -171,6 +177,9 @@ export const getVariables = () =>
 
 export const saveVariables = (vars: VariablesConfig) => 
   api.post<{ success: boolean }>("/variables", vars);
+
+export const generateSSHKey = (name: string) => 
+  api.post<SSHKeyPair>("/variables/ssh-keys/generate", { name });
 
 // --- Stats ---
 

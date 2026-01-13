@@ -7,14 +7,21 @@ const VARS_FILE = join(CONFIG_DIR, "variables.json");
 
 await ensureDir(CONFIG_DIR);
 
+export interface SSHKeyPair {
+  privateKey: string;
+  publicKey: string;
+}
+
 export interface VariablesConfig {
   global: Record<string, string>;
   environments: Record<string, Record<string, string>>;
+  sshKeys?: Record<string, SSHKeyPair>; // name -> key pair
 }
 
 const DEFAULT_CONFIG: VariablesConfig = {
   global: {},
   environments: {},
+  sshKeys: {},
 };
 
 export async function loadVariables(): Promise<VariablesConfig> {
@@ -90,4 +97,14 @@ export async function getMergedEnv(envName?: string): Promise<Record<string, str
     ...globalEnv,
     ...selectedEnv,
   };
+}
+
+// Returns only private keys for use in pipeline context
+export async function getSSHPrivateKeys(): Promise<Record<string, string>> {
+  const config = await loadVariables();
+  const result: Record<string, string> = {};
+  for (const [name, keyPair] of Object.entries(config.sshKeys || {})) {
+    result[name] = keyPair.privateKey;
+  }
+  return result;
 }

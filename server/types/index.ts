@@ -42,6 +42,7 @@ export interface PipelineContext {
   readonly workDir: string; // Isolated sandbox directory
   readonly env: Readonly<Record<string, string>>;
   readonly inputs: Readonly<Record<string, string | boolean>>; // Runtime input values
+  readonly sshKey: Readonly<Record<string, string>>; // SSH keys by name
   readonly results: Record<string, unknown>;
   prev: unknown;
   readonly pipelineId: string;
